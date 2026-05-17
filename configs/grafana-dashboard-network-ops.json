@@ -1,0 +1,398 @@
+{
+  "dashboard": {
+    "title": "Smart NOC - Network Operations",
+    "tags": ["network", "noc", "logs"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "5s",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Total Events",
+        "gridPos": {"h": 6, "w": 4, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Critical Errors",
+        "gridPos": {"h": 6, "w": 4, "x": 4, "y": 0},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "severity:ERROR OR severity:CRITICAL",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "orange", "value": 5},
+                {"color": "red", "value": 20}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "reduceOptions": {"calcs": ["lastNotNull"]}
+        }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Warnings",
+        "gridPos": {"h": 6, "w": 4, "x": 8, "y": 0},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "severity:WARNING",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "reduceOptions": {"calcs": ["lastNotNull"]}
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "High Criticality Devices",
+        "gridPos": {"h": 6, "w": 4, "x": 12, "y": 0},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "criticality:high",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "blue", "value": null}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Events Per Minute",
+        "gridPos": {"h": 8, "w": 16, "x": 0, "y": 6},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [
+              {
+                "type": "date_histogram",
+                "field": "@timestamp",
+                "id": "2",
+                "settings": {"interval": "auto", "min_doc_count": 0}
+              }
+            ],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "lineWidth": 2,
+              "pointSize": 5,
+              "showPoints": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom"},
+          "tooltip": {"mode": "multi"}
+        }
+      },
+      {
+        "id": 6,
+        "type": "piechart",
+        "title": "Event Type Distribution",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [
+              {
+                "type": "terms",
+                "field": "event_type.keyword",
+                "id": "2",
+                "settings": {"size": 10, "order": "desc", "orderBy": "_count"}
+              }
+            ],
+            "timeField": "@timestamp"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right", "values": ["value"]},
+          "pieType": "pie",
+          "tooltip": {"mode": "single"}
+        }
+      },
+      {
+        "id": 7,
+        "type": "barchart",
+        "title": "Top 10 Devices by Log Volume",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [
+              {
+                "type": "terms",
+                "field": "device_id.keyword",
+                "id": "2",
+                "settings": {"size": 10, "order": "desc", "orderBy": "_count"}
+              }
+            ],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "xField": "device_id.keyword",
+          "legend": {"displayMode": "hidden"}
+        }
+      },
+      {
+        "id": 8,
+        "type": "piechart",
+        "title": "Severity Distribution",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 14},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [
+              {
+                "type": "terms",
+                "field": "severity.keyword",
+                "id": "2",
+                "settings": {"size": 10, "order": "desc", "orderBy": "_count"}
+              }
+            ],
+            "timeField": "@timestamp"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+          "pieType": "donut"
+        },
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "CRITICAL"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "ERROR"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "WARNING"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "INFO"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]
+            }
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "type": "piechart",
+        "title": "Device Criticality",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 14},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "*",
+            "metrics": [{"type": "count", "id": "1"}],
+            "bucketAggs": [
+              {
+                "type": "terms",
+                "field": "criticality.keyword",
+                "id": "2",
+                "settings": {"size": 10, "order": "desc", "orderBy": "_count"}
+              }
+            ],
+            "timeField": "@timestamp"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+          "pieType": "pie"
+        }
+      },
+      {
+        "id": 10,
+        "type": "table",
+        "title": "Recent Critical Events",
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 22},
+        "targets": [
+          {
+            "datasource": {"type": "elasticsearch", "uid": "elasticsearch-networklogs"},
+            "query": "severity:(ERROR OR CRITICAL)",
+            "metrics": [{"type": "raw_document", "id": "1"}],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "@timestamp"},
+              "properties": [{"id": "custom.width", "value": 180}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "device_id"},
+              "properties": [{"id": "custom.width", "value": 150}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "severity"},
+              "properties": [
+                {"id": "custom.width", "value": 100},
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "ERROR": {"color": "red", "index": 0},
+                        "CRITICAL": {"color": "dark-red", "index": 1}
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"displayName": "@timestamp", "desc": true}]
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "_id": true,
+                "_index": true,
+                "_type": true,
+                "event.original": true,
+                "event_fingerprint": true,
+                "tags": true
+              },
+              "indexByName": {
+                "@timestamp": 0,
+                "device_id": 1,
+                "device_role": 2,
+                "criticality": 3,
+                "severity": 4,
+                "event_type": 5,
+                "message": 6
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

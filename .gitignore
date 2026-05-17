@@ -1,0 +1,111 @@
+# .gitignore for Smart NOC Project
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Data files (large datasets)
+data/baseline.json
+data/models/*.pkl
+data/models/*.h5
+data/logs/*.log
+
+# Elasticsearch data
+infrastructure/elasticsearch/data/
+
+# Kafka data
+infrastructure/kafka/data/
+
+# Grafana data
+infrastructure/grafana/data/
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+tmp/
+temp/
+
+# Database backups (large files)
+backup*.sql
+backups/*.sql
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local configuration
+config/local.yaml
+config/secrets.yaml
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Temporal data
+.temporal/
+
+# Node modules (if any frontend)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Ansible
+*.retry
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Keep empty directories
+!.gitkeep

@@ -1,0 +1,41 @@
+# Anomaly Detector Configuration
+
+kafka:
+  bootstrap_servers: "kafka:19092"
+  input_topic: "network-logs-enriched" # Changed: now consumes enriched logs from Logstash
+  output_topic: "anomalies"
+  group_id: "anomaly-detector"
+
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+
+detection:
+  # Sliding window parameters
+  window_size_minutes: 5
+
+  # Rule-based thresholds (LOWERED FOR TESTING/DEMO)
+  interface_flapping:
+    threshold: 2 # flaps in window (was 5 - easier to trigger)
+    severity: "HIGH"
+
+  auth_brute_force:
+    threshold: 5 # failures in window (was 10 - easier to trigger)
+    severity: "CRITICAL"
+
+  high_cpu:
+    threshold: 80 # percent
+    duration_minutes: 1 # (was 10 - much easier to trigger for testing)
+    severity: "HIGH"
+
+  bgp_instability:
+    threshold: 2 # state changes in window (was 3 - easier to trigger)
+    severity: "HIGH"
+
+  # ML-based parameters
+  isolation_forest:
+    contamination: 0.1 # Expected anomaly ratio
+    n_estimators: 100
+    train_interval_minutes: 60 # Retrain every hour
+    min_samples: 50 # Minimum samples before training

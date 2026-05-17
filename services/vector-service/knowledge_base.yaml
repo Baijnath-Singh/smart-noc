@@ -1,0 +1,1304 @@
+# Smart NOC Knowledge Base Articles
+# 20 Core articles covering common network issues
+
+articles:
+  # ============================================================================
+  # BGP ISSUES (4 articles)
+  # ============================================================================
+  - id: KB-001
+    title: "BGP Session Down Troubleshooting"
+    event_type: BGP_SESSION_DOWN
+    vendor: generic
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      BGP session down indicates loss of connectivity with BGP neighbor.
+
+      Common Causes:
+      1. Physical link failure (60%) - Interface down, fiber cut, SFP failure
+      2. Incorrect BGP configuration (20%) - Wrong neighbor IP, AS mismatch
+      3. Authentication failure (10%) - MD5 password mismatch
+      4. Access-list blocking TCP 179 (5%)
+      5. Route flapping causing hold timer expiry (5%)
+
+      Diagnostic Steps:
+      1. Verify IP connectivity: ping <neighbor-ip>
+      2. Check interface status: show interface <interface>
+      3. Verify BGP configuration: show ip bgp summary
+      4. Check authentication: show ip bgp neighbors | include password
+      5. Review logs: show logging | include BGP
+
+      Remediation:
+      - If interface down: Check physical connection, replace SFP if needed
+      - If config issue: Correct neighbor statement, verify AS numbers
+      - If auth failure: Ensure matching MD5 passwords on both sides
+      - If ACL blocking: Permit TCP 179 in access-list
+      - If flapping: Investigate route stability, adjust timers
+
+  - id: KB-002
+    title: "BGP Neighbor Flapping"
+    event_type: BGP_SESSION_FLAP
+    vendor: generic
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      BGP session repeatedly going up and down (flapping).
+
+      Common Causes:
+      1. Unstable physical link (50%) - Intermittent fiber/copper issues
+      2. Route instability (25%) - Too many prefix updates
+      3. CPU overload (15%) - Router CPU maxed out
+      4. Hold timer too aggressive (5%)
+      5. Memory exhaustion (5%)
+
+      Diagnostic Commands (Cisco):
+      - show ip bgp summary
+      - show interface counters errors
+      - show processes cpu sorted | exclude 0.00
+      - show memory statistics
+      - show ip bgp neighbors <ip> | include Hold time
+
+      Remediation:
+      - Check link quality: Look for CRC errors, replace cable/SFP
+      - Tune BGP timers: Increase hold timer (180s) and keepalive (60s)
+      - Filter unnecessary routes: Use prefix-lists to reduce routing table
+      - Upgrade hardware: If CPU/memory consistently high
+      - Use BFD: For faster failure detection without flapping
+
+  - id: KB-003
+    title: "BGP Route Not Advertised"
+    event_type: BGP_ROUTE_MISSING
+    vendor: generic
+    success_rate: 0.92
+    category: troubleshooting
+    content: |
+      Expected BGP route not appearing in neighbor's routing table.
+
+      Common Causes:
+      1. Route not in local routing table (40%)
+      2. Filtered by outbound route-map/prefix-list (30%)
+      3. Next-hop unreachable (15%)
+      4. AS-path loop prevention (10%)
+      5. Maximum prefix limit reached (5%)
+
+      Diagnostic Steps:
+      1. Verify route in local table: show ip route <prefix>
+      2. Check BGP table: show ip bgp <prefix>
+      3. Verify advertisement: show ip bgp neighbors <ip> advertised-routes
+      4. Check filters: show ip bgp neighbors <ip> | include route-map
+      5. Review prefix limits: show ip bgp neighbors <ip> | include Maximum
+
+      Resolution:
+      - If not in routing table: Add static route or enable IGP
+      - If filtered: Adjust route-map/prefix-list to permit route
+      - If next-hop issue: Configure next-hop-self or add static route
+      - If AS-path loop: Remove prepend or adjust AS-path filter
+      - If max-prefix: Increase limit or filter unwanted prefixes
+
+  - id: KB-004
+    title: "BGP Slow Convergence"
+    event_type: BGP_SLOW_CONVERGENCE
+    vendor: generic
+    success_rate: 0.78
+    category: performance
+    content: |
+      BGP taking too long to converge after network change.
+
+      Contributing Factors:
+      1. Default timers too slow (60s keepalive, 180s hold)
+      2. Large routing tables requiring full table walk
+      3. Route dampening enabled
+      4. Slow router CPU processing updates
+      5. Complex route-maps with many match statements
+
+      Optimization Strategies:
+      - Tune BGP timers: Set keepalive 10s, hold 30s for faster detection
+      - Enable BFD: Sub-second failure detection
+      - Use route refresh: Instead of tearing down session
+      - Optimize route-maps: Use prefix-lists instead of ACLs
+      - Increase scanner interval: For faster best-path recalculation
+
+      Commands (Cisco):
+      - neighbor <ip> timers 10 30
+      - neighbor <ip> fall-over bfd
+      - bgp scan-time 5
+
+      Trade-offs:
+      - Aggressive timers = faster convergence but more CPU/bandwidth
+      - BFD = best option for fast failover without overhead
+
+  # ============================================================================
+  # INTERFACE ISSUES (4 articles)
+  # ============================================================================
+  - id: KB-005
+    title: "Interface Link Flapping"
+    event_type: INTERFACE_LINK_FLAP
+    vendor: generic
+    success_rate: 0.92
+    category: troubleshooting
+    content: |
+      Interface rapidly transitioning between up and down states.
+
+      Root Causes (by frequency):
+      1. Faulty SFP/transceiver (45%)
+      2. Bad cable or loose connection (30%)
+      3. Duplex mismatch (10%)
+      4. Spanning tree reconvergence (8%)
+      5. Port security violations (4%)
+      6. Power supply issues (3%)
+
+      Diagnostic Commands:
+      Cisco:
+      - show interface <interface> status
+      - show interface <interface> transceiver
+      - show interface counters errors
+      - show logging | include <interface>
+      - show interface <interface> | include CRC
+
+      Juniper:
+      - show interfaces <interface> extensive
+      - show interfaces diagnostics optics <interface>
+      - show log messages | match <interface>
+
+      Remediation Steps:
+      1. Check physical: Reseat cable, check for damage
+      2. Test transceiver: Swap SFP with known-good module
+      3. Verify duplex: Set both sides to auto or hard-code matching
+      4. Check errors: High CRC/runts/giants indicate layer 1 issue
+      5. Disable port security: Temporarily to rule out as cause
+
+      Quick Fixes:
+      - shut/no shut interface (clears transient errors)
+      - Replace SFP module (most common fix)
+      - Use different cable (test with cable tester first)
+
+  - id: KB-006
+    title: "Interface Down - Physical Link Failure"
+    event_type: INTERFACE_LINK_DOWN
+    vendor: generic
+    success_rate: 0.94
+    category: troubleshooting
+    content: |
+      Interface in down/down state indicating physical layer failure.
+
+      Common Causes:
+      1. Cable unplugged or damaged (40%)
+      2. Failed SFP/transceiver (30%)
+      3. Remote side interface shutdown (15%)
+      4. Switch/router port failure (10%)
+      5. Power loss to remote device (5%)
+
+      Diagnostic Process:
+      Step 1 - Verify local interface status:
+      - show interface <interface> status (should show "notconnect" or "down")
+      - show interface transceiver (check if SFP detected)
+
+      Step 2 - Check physical connections:
+      - Verify cable securely plugged in both ends
+      - Check for visible damage to cable/connectors
+      - Verify correct cable type (fiber vs copper, single vs multi-mode)
+
+      Step 3 - Test transceiver:
+      - show interface transceiver detail (check light levels)
+      - Acceptable fiber RX power: -10 to -25 dBm
+      - If no light: Bad SFP or fiber break
+
+      Step 4 - Verify remote end:
+      - Check if remote interface is admin up
+      - Verify remote interface not err-disabled
+
+      Resolution Priority:
+      1. Reseat cable and SFP (fixes 20% of issues)
+      2. Replace SFP if no light detected (fixes 30%)
+      3. Replace cable if one end has light, other doesn't (fixes 25%)
+      4. Check remote side configuration (fixes 15%)
+      5. Replace port/linecard if hardware failure (rare, 10%)
+
+  - id: KB-007
+    title: "Interface CRC Errors"
+    event_type: INTERFACE_CRC_ERRORS
+    vendor: generic
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      CRC (Cyclic Redundancy Check) errors indicate corrupted frames.
+
+      What CRC Errors Mean:
+      - Frame received with incorrect checksum
+      - Usually indicates physical layer problem
+      - Can cause packet loss and retransmissions
+      - >0.1% error rate is significant
+
+      Root Causes:
+      1. Bad cable (40%) - Damaged, wrong category, too long
+      2. EMI/interference (25%) - Near power sources, fluorescent lights
+      3. Faulty NIC/transceiver (20%)
+      4. Duplex mismatch (10%)
+      5. Overheating (5%)
+
+      Diagnostic Commands:
+      - show interface counters errors
+      - show interface <interface> | include CRC
+      - show interface <interface> | include error
+      - show environment temperature
+
+      Troubleshooting Steps:
+      1. Identify error rate: errors / total packets
+      2. Check both sides: Errors on one side only = that side's problem
+      3. Test cable: Replace with known-good cable
+      4. Check duplex: Verify matching on both ends
+      5. Monitor temperature: Ensure adequate cooling
+      6. Swap transceiver: If errors persist after cable replacement
+
+      Resolution:
+      - Low error rate (<0.01%): Monitor, may be acceptable
+      - Medium (0.01-0.1%): Replace cable first
+      - High (>0.1%): Immediate replacement needed
+      - Consistent errors: Likely hardware (SFP/NIC)
+      - Intermittent errors: Likely cable/EMI
+
+  - id: KB-008
+    title: "Interface Saturated - High Bandwidth Utilization"
+    event_type: INTERFACE_SATURATED
+    vendor: generic
+    success_rate: 0.82
+    category: capacity
+    content: |
+      Interface bandwidth utilization >85% causing congestion.
+
+      Symptoms:
+      - Packet drops (output drops on congested side)
+      - Increased latency
+      - Poor application performance
+      - Queue depth increasing
+
+      Immediate Actions:
+      1. Identify top talkers: show ip flow top-talkers (NetFlow)
+      2. Check interface stats: show interface | include rate
+      3. Verify QoS: show policy-map interface
+      4. Look for broadcast storms: show interface | include broadcast
+
+      Short-term Solutions:
+      - Enable QoS: Prioritize critical traffic
+      - Rate-limit non-critical: Police bulk transfers
+      - Schedule large transfers: Move to off-hours
+      - Clear unnecessary traffic: Block attacks/unwanted protocols
+
+      Long-term Solutions:
+      - Upgrade link capacity: 1G → 10G, 10G → 40G/100G
+      - Add parallel links: EtherChannel/LAG for load balancing
+      - Implement traffic shaping: Smooth bursts
+      - Optimize routing: Use multiple paths (ECMP)
+      - Segment network: VLANs to reduce broadcast domains
+
+      Capacity Planning:
+      - Monitor 95th percentile utilization
+      - Plan upgrade when sustained >70% utilization
+      - Consider growth rate (Y-o-Y traffic increase)
+
+  # ============================================================================
+  # ROUTING ISSUES (3 articles)
+  # ============================================================================
+  - id: KB-009
+    title: "OSPF Neighbor Down"
+    event_type: OSPF_NEIGHBOR_DOWN
+    vendor: generic
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      OSPF adjacency lost with neighbor router.
+
+      Common Causes:
+      1. Interface down (40%) - Physical link failure
+      2. Hello/Dead timer mismatch (25%)
+      3. Area mismatch (15%)
+      4. Authentication failure (10%)
+      5. MTU mismatch (5%)
+      6. Network type mismatch (5%)
+
+      Diagnostic Commands:
+      Cisco:
+      - show ip ospf neighbor
+      - show ip ospf interface
+      - show ip ospf database
+      - debug ip ospf adj (use cautiously)
+
+      Verification Checklist:
+      □ Interface up/up: show interface brief
+      □ Same subnet: show ip interface brief
+      □ Same area: show ip ospf interface
+      □ Same hello/dead timers: show ip ospf interface
+      □ Same authentication: show ip ospf interface | include auth
+      □ Same MTU: show interface | include MTU
+      □ Same network type: show ip ospf interface | include Network Type
+
+      Resolution:
+      - Interface down: Fix physical link (see KB-006)
+      - Timer mismatch: ip ospf hello-interval <seconds>
+      - Area mismatch: Correct area in interface config
+      - Auth failure: Ensure matching keys/passwords
+      - MTU mismatch: ip mtu <bytes> on interface
+      - Network type: ip ospf network <point-to-point|broadcast>
+
+      Prevention:
+      - Use consistent OSPF design across network
+      - Document area assignments
+      - Template configs for consistency
+      - Monitor adjacency counts with SNMP
+
+  - id: KB-010
+    title: "Routing Loop Detected"
+    event_type: ROUTING_LOOP
+    vendor: generic
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      Packets circulating between routers indefinitely.
+
+      Symptoms:
+      - TTL exceeded messages
+      - High CPU on routers in loop
+      - Network unreachable errors
+      - Traceroute shows repeating hops
+
+      Common Causes:
+      1. Incorrect static routes (35%)
+      2. Route redistribution without filtering (30%)
+      3. Routing protocol misconfiguration (20%)
+      4. Split-horizon disabled (10%)
+      5. Route aggregation issue (5%)
+
+      Detection:
+      - traceroute <destination> (shows loop path)
+      - show ip route <prefix> (on each router in loop)
+      - show ip protocols (verify routing protocol config)
+      - show ip bgp <prefix> (for BGP loops)
+
+      Immediate Fix:
+      1. Identify looping routers: Use traceroute
+      2. Find conflicting routes: show ip route on each router
+      3. Remove incorrect route: Temporarily shut interface or remove static
+      4. Verify loop cleared: Ping should succeed
+
+      Permanent Fix:
+      - Correct static routes: Verify next-hop and metric
+      - Fix redistribution: Use route-maps with deny clauses
+      - Adjust admin distance: Prefer correct routing protocol
+      - Enable split-horizon: On RIP/EIGRP interfaces
+      - Use route tagging: Mark redistributed routes
+
+      Prevention:
+      - Avoid multiple redistribution points
+      - Use routing protocol hierarchy (OSPF > EIGRP > RIP > Static)
+      - Filter redistributed routes with prefix-lists
+      - Document routing design clearly
+
+  - id: KB-011
+    title: "Suboptimal Routing Path"
+    event_type: SUBOPTIMAL_ROUTING
+    vendor: generic
+    success_rate: 0.75
+    category: optimization
+    content: |
+      Traffic taking non-optimal path through network.
+
+      Indicators:
+      - Higher latency than expected
+      - Traceroute shows extra hops
+      - Asymmetric routing (different path each direction)
+      - Link underutilized while alternate link saturated
+
+      Common Causes:
+      1. Incorrect metrics (40%) - OSPF cost, EIGRP delay
+      2. Single path preference (25%) - No load balancing
+      3. Static routes overriding dynamic (20%)
+      4. Route summarization hiding better path (10%)
+      5. Policy routing forcing suboptimal path (5%)
+
+      Analysis Tools:
+      - traceroute from multiple sources
+      - show ip route <destination> (check next-hop)
+      - show ip protocols (verify metrics)
+      - show ip cef <destination> (verify load sharing)
+
+      Optimization Steps:
+      1. Verify metrics:
+         - OSPF: Match bandwidth (reference-bandwidth 10000)
+         - EIGRP: Tune delay, don't use bandwidth
+         - BGP: Adjust local-pref, AS-path, MED
+
+      2. Enable load balancing:
+         - maximum-paths <2-32> (for EIGRP/OSPF)
+         - maximum-paths ibgp <2-32> (for iBGP)
+
+      3. Remove static routes:
+         - Replace with dynamic routing where possible
+
+      4. Adjust BGP path selection:
+         - local-preference (prefer specific path)
+         - as-path prepend (make path less preferred)
+         - MED (suggest path to neighbor)
+
+      5. Use policy-based routing:
+         - Only when necessary (adds complexity)
+         - route-map with set ip next-hop
+
+      Verification:
+      - Consistent traceroute results
+      - Latency meets expectations
+      - Both directions use same path (if desired)
+      - Load distributed across available paths
+
+  # ============================================================================
+  # CPU/MEMORY/PERFORMANCE ISSUES (3 articles)
+  # ============================================================================
+  - id: KB-012
+    title: "High CPU Utilization"
+    event_type: HIGH_CPU
+    vendor: generic
+    success_rate: 0.83
+    category: performance
+    content: |
+      Router/switch CPU consistently >80% causing performance degradation.
+
+      Impact:
+      - Slow CLI response
+      - Dropped packets (punted to CPU)
+      - Routing protocol instability
+      - SNMP timeouts
+
+      Common Causes:
+      1. Excessive control plane traffic (35%) - ICMP, ARP, routing updates
+      2. Software bug (25%) - Process stuck in loop
+      3. Denial of Service attack (20%)
+      4. Too many ACLs/QoS policies (10%)
+      5. Hardware offload failure (10%)
+
+      Diagnostic Commands:
+      Cisco:
+      - show processes cpu sorted | exclude 0.00
+      - show processes cpu history
+      - show ip traffic (look for abnormal traffic)
+      - show control-plane host open-ports
+
+      Identify Culprit:
+      - IP Input: Packets punted to CPU (use CoPP)
+      - ARP Input: ARP storms (rate-limit ARP)
+      - BGP/OSPF: Routing churn (stabilize adjacencies)
+      - Specific process: Bug or misconfiguration
+
+      Mitigation:
+      1. Control Plane Policing (CoPP):
+         - Rate-limit traffic to CPU
+         - Prioritize routing protocols
+
+      2. Reduce punted traffic:
+         - Use hardware ACLs (TCAM)
+         - Offload QoS to hardware
+         - Enable CEF (hardware switching)
+
+      3. Fix routing instability:
+         - Tune BGP/OSPF timers
+         - Filter unnecessary routes
+         - Use route dampening
+
+      4. Block attacks:
+         - ACL to block DoS traffic
+         - Enable uRPF (unicast RPF)
+
+      5. Upgrade software:
+         - If known bug, upgrade IOS/JunOS
+
+      Emergency Actions:
+      - Reload device (clears stuck process)
+      - Disable non-critical features
+      - Remove complex ACLs temporarily
+      - Shut down flapping interfaces
+
+  - id: KB-013
+    title: "Memory Exhaustion"
+    event_type: MEMORY_EXHAUSTED
+    vendor: generic
+    success_rate: 0.80
+    category: performance
+    content: |
+      Router/switch running out of available memory.
+
+      Symptoms:
+      - Device reloads unexpectedly
+      - CLI extremely slow
+      - Log messages: %SYS-2-MALLOCFAIL
+      - Cannot create new processes/connections
+
+      Common Causes:
+      1. Memory leak (40%) - Software bug accumulating memory
+      2. Too many routes (30%) - Full BGP table without enough RAM
+      3. Excessive logging (15%) - Buffering too many logs
+      4. Too many ACLs/features (10%)
+      5. Hardware limitation (5%) - Device underpowered
+
+      Diagnostic Commands:
+      - show memory statistics
+      - show memory summary
+      - show processes memory sorted | exclude 0
+      - show ip route summary (count routes)
+      - show ip bgp summary (if running BGP)
+
+      Immediate Actions:
+      1. Clear logs: clear logging
+      2. Clear ARP cache: clear arp-cache
+      3. Reduce BGP routes: Filter unnecessary prefixes
+      4. Reload device: If memory critically low
+
+      Long-term Solutions:
+      1. Upgrade memory: Add RAM modules
+      2. Upgrade device: To model with more memory
+      3. Filter routes: Use prefix-lists to reduce table size
+      4. Disable unused features: Free up memory
+      5. Upgrade software: Fix memory leaks
+
+      Memory Requirements (Rough):
+      - Small office router: 512MB-1GB
+      - Enterprise edge: 2GB-4GB
+      - Service provider (full BGP): 8GB-32GB
+
+      Prevention:
+      - Monitor memory usage trends
+      - Set SNMP alerts at 80% threshold
+      - Plan capacity for 2-3 years growth
+      - Don't run full BGP table on small routers
+
+  - id: KB-014
+    title: "Interface Queue Drops"
+    event_type: INTERFACE_DROPS
+    vendor: generic
+    success_rate: 0.86
+    category: performance
+    content: |
+      Packets dropped due to output queue saturation.
+
+      What Queue Drops Indicate:
+      - Interface sending faster than link capacity
+      - Microbursts exceeding buffer size
+      - Need for QoS/traffic shaping
+
+      Types of Drops:
+      - Output drops: Congestion on egress interface
+      - Input drops: Buffer overflow on ingress (rare)
+
+      Diagnostic Commands:
+      - show interface | include drops
+      - show interface counters
+      - show queueing interface <interface>
+      - show policy-map interface <interface>
+
+      Root Cause Analysis:
+      1. Check interface utilization:
+         - If >85%: Link saturated, need capacity upgrade
+         - If <70%: Microbursts, need larger buffers or QoS
+
+      2. Identify traffic:
+         - show ip flow top-talkers
+         - show ip cache flow
+         - NetFlow analysis
+
+      3. Verify QoS:
+         - Is QoS configured?
+         - Are correct queues prioritized?
+         - Are queue sizes appropriate?
+
+      Solutions:
+      1. Upgrade link capacity:
+         - If sustained utilization >70%
+         - Immediate relief for congestion
+
+      2. Implement QoS:
+         - Prioritize VoIP/critical traffic
+         - Police/rate-limit bulk transfers
+         - Configure queuing (WFQ, CBWFQ, LLQ)
+
+      3. Traffic shaping:
+         - Smooth bursts with token bucket
+         - Shape to match slower downstream link
+
+      4. Increase buffer size:
+         - hold-queue <size> out
+         - Only if hardware supports
+
+      5. Rate limit sources:
+         - Limit individual hosts/applications
+         - Prevent single source consuming all bandwidth
+
+      Quick Fix:
+      - If critical: Add parallel link (EtherChannel)
+      - If QoS exists: Adjust queue sizes/priorities
+      - If burst issue: Enable traffic shaping
+
+  # ============================================================================
+  # SPANNING TREE ISSUES (2 articles)
+  # ============================================================================
+  - id: KB-015
+    title: "Spanning Tree Loop/Broadcast Storm"
+    event_type: STP_LOOP
+    vendor: generic
+    success_rate: 0.91
+    category: troubleshooting
+    content: |
+      Layer 2 loop causing broadcast storm and network meltdown.
+
+      Symptoms (SEVERE):
+      - All switches high CPU (>90%)
+      - Network completely unusable
+      - MAC address table constantly changing
+      - Extremely high broadcast traffic
+      - Multiple duplicate frames
+
+      Common Causes:
+      1. STP disabled on link (50%)
+      2. Unmanaged switch in path (30%)
+      3. STP BPDU filtering enabled incorrectly (10%)
+      4. Virtual cable (laptop bridging interfaces) (5%)
+      5. BPDU guard not configured (5%)
+
+      Emergency Detection:
+      - show spanning-tree (look for TCN floods)
+      - show interfaces counters (massive packet counts)
+      - show mac address-table (addresses flapping)
+      - show processes cpu sorted (high CPU)
+
+      Emergency Fix (IMMEDIATE):
+      1. Identify loop: Unplug cables one at a time
+      2. Or shutdown ports: Find port with extreme traffic
+      3. Enable STP: spanning-tree mode rapid-pvst
+      4. Wait for convergence: 30-50 seconds
+
+      Proper Configuration:
+      - Enable STP on all VLANs: spanning-tree vlan 1-4094
+      - Use Rapid PVST+ or MST: Faster convergence
+      - Configure root bridge: spanning-tree vlan X priority 4096
+      - Enable PortFast on access ports: spanning-tree portfast
+      - Enable BPDU Guard: spanning-tree bpduguard enable
+      - Use Root Guard on distribution: spanning-tree guard root
+
+      Prevention:
+      - Never disable STP
+      - Don't connect unmanaged switches
+      - Document physical topology
+      - Enable BPDU guard on all access ports
+      - Use loop guard on uplinks
+      - Regular audits of STP topology
+
+  - id: KB-016
+    title: "Spanning Tree Topology Change"
+    event_type: STP_TOPOLOGY_CHANGE
+    vendor: generic
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      STP topology changes causing brief network disruption.
+
+      What Happens:
+      - STP recalculates forwarding paths
+      - MAC address tables flushed
+      - 30-50 second convergence (legacy STP)
+      - 1-2 second convergence (RSTP)
+      - Brief traffic disruption possible
+
+      Common Triggers:
+      1. Link flap (60%) - Interface up/down
+      2. Device reboot (20%)
+      3. VLAN changes (10%)
+      4. Configuration change (10%)
+
+      Diagnostic Commands:
+      - show spanning-tree summary
+      - show spanning-tree vlan <vlan-id>
+      - show spanning-tree interface <interface> detail
+      - show logging | include STP
+
+      Identify Cause:
+      - Check logs for interface flaps
+      - Look for TCN (Topology Change Notification) source
+      - Verify root bridge stable
+      - Check for unauthorized devices
+
+      Mitigation:
+      1. Fix unstable links:
+         - Replace bad cables/SFPs
+         - Fix interface flapping (see KB-005)
+
+      2. Tune STP:
+         - Use RSTP for faster convergence
+         - Configure portfast on access ports
+         - Enable UplinkFast on access switches
+         - Enable BackboneFast for faster reconvergence
+
+      3. Prevent unnecessary changes:
+         - BPDU guard on access ports
+         - Root guard on uplinks
+         - Loop guard on point-to-point links
+
+      4. Reduce VLAN count:
+         - Use MST instead of PVST+ (scales better)
+         - Consolidate VLANs where possible
+
+      Best Practices:
+      - Use RSTP or MST (not legacy STP)
+      - Portfast on all access ports (except uplinks)
+      - BPDU guard on all portfast ports
+      - Root guard on distribution uplinks
+      - Set root bridge priority explicitly
+      - Monitor STP topology changes with SNMP
+
+  # ============================================================================
+  # SECURITY ISSUES (2 articles)
+  # ============================================================================
+  - id: KB-017
+    title: "Authentication Failures / Brute Force"
+    event_type: AUTH_FAILURE_SPIKE
+    vendor: generic
+    success_rate: 0.93
+    category: security
+    content: |
+      Repeated failed authentication attempts indicating attack or misconfiguration.
+
+      Severity Levels:
+      - 1-5 failures: Normal (typos, wrong password)
+      - 6-20 failures: Investigate (may be misconfigured service)
+      - 20+ failures: Attack (brute force attempt)
+
+      Common Sources:
+      1. Brute force attack (40%) - External attacker
+      2. Misconfigured service (30%) - Automated script wrong password
+      3. Former employee (15%) - Using old credentials
+      4. Compromised account (10%) - Credential stuffing
+      5. Bug in application (5%)
+
+      Diagnostic Commands:
+      - show logging | include Failed
+      - show logging | include Authentication
+      - show users
+      - show tcp brief (look for many SSH/telnet connections)
+
+      Identify Attack:
+      - Source IP: Single IP = targeted attack
+      - Multiple IPs: Distributed attack
+      - Username: Multiple users = spray attack
+      - Time pattern: Automated vs manual
+
+      Immediate Response:
+      1. Block attacker:
+         - access-list 100 deny ip <attacker-ip> 0.0.0.0 any
+         - apply to management interface
+
+      2. Enable login delay:
+         - login block-for 300 attempts 3 within 60
+         - (Block for 5 min after 3 failures in 1 min)
+
+      3. Limit sessions:
+         - login on-failure log
+         - login on-success log
+
+      4. Verify legitimate users:
+         - Check if any successful logins from attacker IP
+         - If yes: Credential compromised, change passwords
+
+      Prevention:
+      - Use SSH only (disable telnet)
+      - Use strong passwords (15+ characters)
+      - Implement 2FA/MFA
+      - Restrict management access:
+        * ACL allowing only management subnet
+        * VPN required for external access
+      - Use AAA with TACACS+/RADIUS
+      - Enable login rate limiting
+      - Monitor for anomalies with SIEM
+
+      Long-term:
+      - Certificate-based authentication
+      - Centralized authentication (AD/LDAP)
+      - Automated threat intelligence feeds
+      - Regular password rotation
+
+  - id: KB-018
+    title: "Unauthorized Device Detected"
+    event_type: UNAUTHORIZED_DEVICE
+    vendor: generic
+    success_rate: 0.87
+    category: security
+    content: |
+      Unknown device connected to network without authorization.
+
+      Detection Methods:
+      - New MAC address in MAC table
+      - DHCP request from unknown device
+      - 802.1X authentication failure
+      - ARP for unknown IP
+      - Port security violation
+
+      Risk Levels:
+      - Low: Printer, IoT device (forgotten to document)
+      - Medium: User laptop, smartphone (policy violation)
+      - High: Unknown device type, unusual traffic (potential threat)
+
+      Investigation Steps:
+      1. Identify device:
+         - show mac address-table | include <mac>
+         - show arp | include <mac>
+         - DHCP logs: Check hostname
+
+      2. Locate physical port:
+         - show mac address-table address <mac>
+         - Note switch and port number
+         - Check LLDP: show lldp neighbors <interface>
+
+      3. Analyze traffic:
+         - NetFlow: show ip cache flow | include <ip>
+         - Port mirror: Capture packets for analysis
+         - Check DNS queries, connections attempted
+
+      4. Determine legitimacy:
+         - Contact user at that location
+         - Check device database/CMDB
+         - Review change requests
+
+      Response Actions:
+      Low Risk (likely legitimate):
+      - Document device
+      - Add to inventory
+      - Apply appropriate VLAN/ACL
+
+      Medium Risk (policy violation):
+      - Quarantine to restricted VLAN
+      - Notify user
+      - Require approval for network access
+
+      High Risk (potential threat):
+      - Immediate shutdown: shutdown interface
+      - Isolate: Move to honeypot VLAN for monitoring
+      - Preserve evidence: Packet captures, logs
+      - Escalate to security team
+
+      Prevention:
+      - 802.1X authentication: Require auth for all ports
+      - Port security: Limit MAC addresses per port
+      - NAC (Network Access Control): Automated remediation
+      - DHCP snooping: Prevent rogue DHCP servers
+      - MAC authentication bypass: For devices without 802.1X
+      - Regular network scans: Identify unknown devices
+      - Asset inventory: Keep database updated
+
+  # ============================================================================
+  # DHCP/DNS ISSUES (2 articles)
+  # ============================================================================
+  - id: KB-019
+    title: "DHCP Pool Exhausted"
+    event_type: DHCP_POOL_EXHAUSTED
+    vendor: generic
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      DHCP server running out of available IP addresses.
+
+      Symptoms:
+      - Devices cannot obtain IP addresses
+      - "No IP address available" in DHCP logs
+      - Users report "limited connectivity"
+      - Some devices work, new devices don't
+
+      Common Causes:
+      1. Too small pool for network size (40%)
+      2. Lease time too long (30%)
+      3. Devices not releasing IPs (20%)
+      4. DHCP exhaustion attack (5%)
+      5. Ghost/stale entries (5%)
+
+      Diagnostic Commands:
+      Cisco:
+      - show ip dhcp binding
+      - show ip dhcp pool <pool-name>
+      - show ip dhcp conflict
+      - show ip dhcp server statistics
+
+      Windows:
+      - Get-DhcpServerv4Scope
+      - Get-DhcpServerv4Lease -ScopeId <subnet>
+      - Get-DhcpServerv4ScopeStatistics
+
+      Immediate Fix:
+      1. Identify stale leases:
+         - Ping all leased IPs
+         - Clear non-responsive: clear ip dhcp binding <ip>
+
+      2. Reduce lease time:
+         - From days to hours (e.g., 24h → 4h)
+         - Forces renewal and release of unused IPs
+
+      3. Expand pool:
+         - Add more IP addresses to scope
+         - Use additional subnet if needed
+
+      4. Exclude static IPs:
+         - ip dhcp excluded-address <start> <end>
+         - Ensure static devices not in pool
+
+      Long-term Solutions:
+      - Right-size pools: 
+        * WiFi: 2x peak devices (high turnover)
+        * Wired: 1.3x devices (low turnover)
+        * Guest: 3x peak (very high turnover)
+
+      - Tune lease times:
+        * Wired office: 24 hours
+        * WiFi: 4-8 hours
+        * Guest: 1-2 hours
+
+      - Regular cleanup:
+        * Monthly audit of bindings
+        * Remove inactive devices from network
+
+      - Monitor utilization:
+        * SNMP alerts at 80% pool usage
+        * Trending to predict exhaustion
+
+      - Prevent attacks:
+        * Port security on access ports
+        * DHCP snooping to limit requests
+        * Rate-limit DHCP on untrusted ports
+
+  - id: KB-020
+    title: "DNS Resolution Failures"
+    event_type: DNS_RESOLUTION_FAILURE
+    vendor: generic
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      Devices unable to resolve domain names to IP addresses.
+
+      Symptoms:
+      - "Cannot resolve hostname" errors
+      - Web browsers show "server not found"
+      - Ping by hostname fails, but IP works
+      - Applications timeout on startup
+
+      Common Causes:
+      1. DNS server unreachable (35%)
+      2. Incorrect DNS server configured (25%)
+      3. DNS server overloaded/crashed (20%)
+      4. Firewall blocking DNS (UDP 53) (15%)
+      5. DNS cache poisoning/corruption (5%)
+
+      Diagnostic Steps:
+      1. Verify DNS servers:
+         - Windows: ipconfig /all
+         - Linux: cat /etc/resolv.conf
+         - Router: show ip name-servers
+
+      2. Test DNS resolution:
+         - nslookup google.com
+         - dig google.com
+         - Test against different DNS servers
+
+      3. Check reachability:
+         - ping <dns-server-ip>
+         - telnet <dns-server-ip> 53
+
+      4. Verify DNS server:
+         - Is DNS service running?
+         - Are zones loaded correctly?
+         - Check DNS server logs
+
+      Troubleshooting Matrix:
+
+      Scenario 1: Ping DNS server fails
+      → DNS server down or network issue
+      → Fix: Restore DNS server or fix connectivity
+
+      Scenario 2: Ping works, nslookup fails
+      → DNS service not running or firewall blocking
+      → Fix: Start DNS service, check firewall rules
+
+      Scenario 3: External DNS works, internal fails
+      → Internal DNS server issue
+      → Fix: Check zone files, restart DNS service
+
+      Scenario 4: Some domains work, others don't
+      → Partial DNS outage or filtering
+      → Fix: Check forwarders, zone delegation
+
+      Quick Fixes:
+      1. Flush DNS cache:
+         - Windows: ipconfig /flushdns
+         - Linux: systemctl restart systemd-resolved
+         - Mac: sudo dscacheutil -flushcache
+
+      2. Use alternate DNS:
+         - Temporarily use 8.8.8.8 or 1.1.1.1
+         - Allows continued operation while fixing primary
+
+      3. Restart DNS service:
+         - Windows: Restart-Service DNS
+         - Linux: systemctl restart named/bind9
+
+      4. Check forwarders:
+         - Ensure upstream DNS servers reachable
+         - Update forwarders if ISP DNS changed
+
+      Long-term Solutions:
+      - Redundant DNS: Primary + secondary servers
+      - Monitor DNS: Response time, query rate
+      - DNS firewall: Block malicious domains
+
+  # ============================================================================
+  # DEVICE FAILURE ISSUES (3 articles) - Added for vector search enhancement
+  # ============================================================================
+  - id: KB-021
+    title: "Router/Switch Device Failure Diagnosis"
+    event_type: DEVICE_FAILURE
+    vendor: generic
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      Multiple simultaneous failures on a single device indicating hardware or system-level issues.
+
+      Symptoms:
+      - Multiple interfaces flapping simultaneously
+      - High CPU/memory utilization
+      - Packet loss across multiple interfaces
+      - System instability or crashes
+      - Kernel panics or error messages
+
+      Common Causes:
+      1. Hardware failure (40%)
+         - Faulty line card or module
+         - Backplane issues
+         - Power supply failure
+         - Fan failure causing overheating
+         - Memory errors (ECC errors)
+
+      2. Software/firmware issues (30%)
+         - Bug in IOS/firmware version
+         - Memory leak
+         - Process crash
+         - Corrupted configuration
+
+      3. Environmental issues (20%)
+         - Overheating due to cooling failure
+         - Power fluctuations
+         - Humidity/condensation
+         - Physical damage
+
+      4. Overload conditions (10%)
+         - Traffic overload
+         - Routing table exhaustion
+         - Too many connections/sessions
+
+      Diagnostic Steps:
+      1. Check system health:
+         - show processes cpu
+         - show memory
+         - show environment all
+         - show logging | include ERROR|CRIT
+
+      2. Check hardware status:
+         - show inventory
+         - show module
+         - show diag
+         - show environment power/temperature/fan
+
+      3. Review recent changes:
+         - show archive config differences
+         - Check change logs
+         - Recent firmware upgrades?
+
+      4. Analyze crash dumps:
+         - show crashinfo
+         - show core
+         - Collect tech-support output
+
+      Remediation Actions:
+      Immediate (stop the bleeding):
+      - If overheating: Check cooling, clean vents
+      - If power issue: Check PSU status, swap if dual
+      - If single module: Shut down affected module
+      - If software: Reload device (during maintenance window)
+
+      Short-term (stabilize):
+      - Reduce load: Throttle traffic, disable non-critical features
+      - Enable logging: Capture detailed logs for analysis
+      - Monitor closely: Set up alerts for key metrics
+      - Prepare backup: Stage replacement hardware
+
+      Long-term (permanent fix):
+      - Replace faulty hardware (line card, PSU, fan)
+      - Upgrade to stable firmware version
+      - Improve environmental controls (cooling, power)
+      - Add redundancy (stacking, VSS, VPC)
+      - Capacity planning (upgrade to larger device)
+
+      Prevention:
+      - Regular hardware health checks
+      - Proactive firmware updates
+      - Environmental monitoring
+      - Hardware lifecycle management
+      - Load balancing and capacity planning
+
+  - id: KB-022
+    title: "Network Interface Card (NIC) Failure"
+    event_type: DEVICE_FAILURE
+    vendor: generic
+    success_rate: 0.91
+    category: troubleshooting
+    content: |
+      Interface repeatedly flapping or showing errors indicating NIC hardware failure.
+
+      Symptoms:
+      - Interface up/down messages in logs
+      - CRC errors, input/output errors
+      - Packet loss on specific interface
+      - Link light flashing/off
+      - Transceiver errors
+
+      Common Causes:
+      1. Transceiver (SFP/QSFP) failure (50%)
+         - Bad optics
+         - Dirty fiber connectors
+         - Wrong transceiver type
+         - Transceiver overheating
+
+      2. Physical cable issues (25%)
+         - Damaged fiber/copper cable
+         - Loose connections
+         - Cable length exceeded
+         - EMI interference (copper)
+
+      3. Port hardware failure (15%)
+         - Failed port on switch/router
+         - Backplane connection issue
+         - Port configuration mismatch
+
+      4. Driver/firmware issues (10%)
+         - Outdated NIC driver
+         - Firmware incompatibility
+         - Software bug
+
+      Diagnostic Steps:
+      1. Check interface status:
+         - show interface <name>
+         - show interface <name> status
+         - Look for errors, resets, runts
+
+      2. Check transceiver:
+         - show interface <name> transceiver
+         - show environment | include Temp
+         - Check TX/RX power levels
+
+      3. Physical inspection:
+         - Inspect fiber connectors (clean if dirty)
+         - Check cable path (damage, bends)
+         - Reseat transceiver and cable
+         - Try different port (isolate failure)
+
+      4. Test with known-good equipment:
+         - Swap cable
+         - Swap transceiver
+         - Test on different port
+
+      Quick Fixes:
+      1. Clean fiber connectors with lint-free wipes
+      2. Reseat transceiver (remove and reinsert)
+      3. Shut/no shut interface
+      4. Try different port
+      5. Replace cable/transceiver
+
+      Permanent Solution:
+      - Replace faulty hardware (NIC, transceiver, cable)
+      - Document serial numbers and failure modes
+      - Keep spare transceivers/cables in stock
+      - Regular maintenance (connector cleaning)
+
+  - id: KB-023
+    title: "High CPU/Memory Causing Device Instability"
+    event_type: DEVICE_FAILURE
+    vendor: generic
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      Device experiencing multiple symptoms due to CPU or memory exhaustion.
+
+      Symptoms:
+      - High CPU utilization (>80% sustained)
+      - High memory usage (>85%)
+      - Slow CLI response
+      - Packet drops
+      - Protocol flaps (BGP, OSPF)
+      - Management unreachable
+
+      Common Causes:
+      1. Traffic/routing overload (35%)
+         - DDoS attack
+         - Traffic spike
+         - Routing table explosion
+         - BGP route churn
+
+      2. Software issues (30%)
+         - Process stuck in loop
+         - Memory leak
+         - Bug in IOS/firmware
+         - Inefficient features enabled
+
+      3. Misconfigurations (20%)
+         - Too many ACLs
+         - Complex QoS policies
+         - Excessive logging
+         - Too many monitored interfaces
+
+      4. Hardware limitations (15%)
+         - Underpowered for workload
+         - Aging hardware
+         - Insufficient memory for table sizes
+
+      Diagnostic Steps:
+      1. Identify CPU hogs:
+         - show processes cpu sorted
+         - show processes cpu history
+         - Identify top processes
+
+      2. Check memory:
+         - show memory
+         - show memory platform
+         - show processes memory sorted
+
+      3. Identify cause:
+         - If "IP Input" high: Traffic forwarding issue
+         - If routing protocol high: Route churn
+         - If specific process: Bug or misconfiguration
+
+      4. Check traffic patterns:
+         - show interface counters errors
+         - show ip traffic
+         - Look for abnormal traffic
+
+      Immediate Mitigation:
+      1. Rate-limit or block attack traffic
+      2. Disable non-critical features temporarily
+      3. Clear unnecessary connections/sessions
+      4. Reduce logging verbosity
+      5. Offload traffic to alternate path
+
+      Permanent Solutions:
+      - Upgrade hardware (more CPU/memory)
+      - Update to stable firmware
+      - Optimize configuration (ACLs, QoS)
+      - Implement traffic filtering upstream
+      - Add load balancing/redundancy
+      - Split DNS: Internal vs external resolution
+      - Regular cache clearing: Prevent stale entries
+      - Load balancing: Distribute queries across servers
+
+      Prevention:
+      - DHCP option 6: Automatically configure DNS
+      - Anycast DNS: Multiple servers, same IP
+      - Health checks: Auto-failover to backup DNS
+      - Rate limiting: Prevent DNS amplification attacks
+      - DNSSEC: Prevent cache poisoning

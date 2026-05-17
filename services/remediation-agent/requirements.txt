@@ -1,0 +1,17 @@
+# LangGraph and LangChain dependencies
+langgraph==0.2.28
+langchain==0.3.1
+langchain-core==0.3.6
+langchain-groq==0.2.0
+langchain-community==0.3.1
+
+# Core dependencies
+kafka-python-ng==2.2.2
+psycopg2-binary==2.9.9
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# Utilities
+loguru==0.7.2
+python-dotenv==1.0.0
+PyYAML==6.0.2

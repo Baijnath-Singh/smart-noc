@@ -1,0 +1,1 @@
+{"timestamp":"May 06 19:55:00","device_id":"core-router-01","device_type":"router","severity":"ERROR","event_type":"INTERFACE_DOWN","interface":"GigabitEthernet0/1","message":"%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down"}

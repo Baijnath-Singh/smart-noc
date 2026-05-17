@@ -1,0 +1,66 @@
+{
+  "index_patterns": ["anomalies-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "detected_at": {
+          "type": "date"
+        },
+        "anomaly_type": {
+          "type": "keyword"
+        },
+        "device_id": {
+          "type": "keyword"
+        },
+        "severity": {
+          "type": "keyword"
+        },
+        "confidence": {
+          "type": "float"
+        },
+        "detection_method": {
+          "type": "keyword"
+        },
+        "event_count": {
+          "type": "integer"
+        },
+        "detector_version": {
+          "type": "keyword"
+        },
+        "source_log": {
+          "type": "object",
+          "enabled": true
+        },
+        "message": {
+          "type": "text"
+        },
+        "interface": {
+          "type": "keyword"
+        },
+        "source_ip": {
+          "type": "ip"
+        },
+        "window_start": {
+          "type": "date"
+        },
+        "window_end": {
+          "type": "date"
+        },
+        "pipeline": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}

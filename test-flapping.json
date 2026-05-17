@@ -1,0 +1,3 @@
+{"timestamp":"May 06 19:56:00","device_id":"core-router-01","device_type":"router","severity":"ERROR","event_type":"INTERFACE_DOWN","interface":"GigabitEthernet0/1","message":"%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down"}
+{"timestamp":"May 06 19:56:10","device_id":"core-router-01","device_type":"router","severity":"INFO","event_type":"INTERFACE_UP","interface":"GigabitEthernet0/1","message":"%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to up"}
+{"timestamp":"May 06 19:56:20","device_id":"core-router-01","device_type":"router","severity":"ERROR","event_type":"INTERFACE_DOWN","interface":"GigabitEthernet0/1","message":"%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down"}

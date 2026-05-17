@@ -1,0 +1,63 @@
+# Smart NOC - Correlation Engine Configuration
+
+kafka:
+  bootstrap_servers: "kafka:19092"
+  input_topic: "anomalies"
+  output_topic: "incidents"
+  consumer_group: "correlation-engine"
+  auto_offset_reset: "latest"
+
+postgres:
+  host: "postgres"
+  port: 5432
+  database: "smart_noc"
+  user: "noc_admin"
+  password: "noc_password"
+  pool_size: 5
+  max_overflow: 10
+
+correlation:
+  # Time-based correlation settings
+  time_window_minutes: 5
+  # Anomalies within this window can be correlated
+
+  # Pattern-based correlation settings
+  same_type_threshold: 2
+  # Minimum anomalies of same type to correlate
+
+  same_device_threshold: 2
+  # Minimum anomalies on same device to correlate
+
+  # Incident severity calculation
+  severity_weights:
+    CRITICAL: 100
+    HIGH: 75
+    MEDIUM: 50
+    LOW: 25
+
+  # Incident type patterns
+  patterns:
+    NETWORK_PERFORMANCE:
+      anomaly_types: [ "HIGH_CPU", "HIGH_MEMORY", "PACKET_LOSS" ]
+      min_devices: 2
+
+    SECURITY_BREACH:
+      anomaly_types: [ "AUTH_FAILURE", "UNAUTHORIZED_ACCESS", "BRUTE_FORCE" ]
+      min_count: 2
+
+    CONNECTIVITY_ISSUE:
+      anomaly_types: [ "INTERFACE_DOWN", "BGP_DOWN", "LINK_DOWN" ]
+      min_devices: 2
+
+    DEVICE_FAILURE:
+      same_device: true
+      different_types: true
+      min_count: 3
+
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level>
+    | <level>{message}</level>"
+
+monitoring:
+  stats_interval_seconds: 300 # Log statistics every 5 minutes

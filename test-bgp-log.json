@@ -1,0 +1,1 @@
+{"source":"test","message":"BGP neighbor 10.0.1.2 down - peer AS 65001 unreachable, route flapping detected on 192.168.10.0/24","timestamp":"2026-05-16T18:55:05.445Z","hostname":"ROUTER-CORE-01","severity":"critical"}

@@ -1,0 +1,23 @@
+# Vector Service Dependencies
+
+# Vector Database Client (matched with server 0.5.0)
+chromadb==0.5.0
+
+# Embedding Model
+sentence-transformers==2.3.1
+
+# NumPy (pin to 1.x for compatibility)
+numpy<2.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# HTTP Client
+requests==2.31.0
+
+# Utilities
+python-dotenv==1.0.0
+pyyaml==6.0.1
+
+# Logging
+colorlog==6.8.2
