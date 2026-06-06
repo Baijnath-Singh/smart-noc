@@ -49,6 +49,11 @@ VECTOR_SIMILAR_INCIDENTS_COUNT = int(os.getenv('VECTOR_SIMILAR_INCIDENTS_COUNT',
 VECTOR_KB_ARTICLES_COUNT = int(os.getenv('VECTOR_KB_ARTICLES_COUNT', '2'))  # Top N KB articles
 VECTOR_MIN_SIMILARITY = float(os.getenv('VECTOR_MIN_SIMILARITY', '0.60'))  # Minimum similarity threshold (lowered from 0.70 for better recall)
 
+# Phase 2: Remediation Lessons Configuration
+REMEDIATION_LESSONS_SOURCE = os.getenv('REMEDIATION_LESSONS_SOURCE', 'chromadb').lower()  # 'sql' or 'chromadb'
+REMEDIATION_LESSONS_COUNT = int(os.getenv('REMEDIATION_LESSONS_COUNT', '5'))  # Top N lessons from ChromaDB
+REMEDIATION_LESSONS_MIN_SIMILARITY = float(os.getenv('REMEDIATION_LESSONS_MIN_SIMILARITY', '0.50'))  # Minimum similarity for ChromaDB
+
 # Remediation Configuration
 REMEDIATION_MAX_STEPS = int(os.getenv('REMEDIATION_MAX_STEPS', '10'))  # Max steps per plan
 REMEDIATION_INCLUDE_ESCALATION = os.getenv('REMEDIATION_INCLUDE_ESCALATION', 'true').lower() == 'true'

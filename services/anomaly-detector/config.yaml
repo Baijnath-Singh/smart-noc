@@ -2,7 +2,7 @@
 
 kafka:
   bootstrap_servers: "kafka:19092"
-  input_topic: "network-logs-enriched" # Changed: now consumes enriched logs from Logstash
+  input_topic: "network-logs" # Consuming directly from log generator
   output_topic: "anomalies"
   group_id: "anomaly-detector"
 

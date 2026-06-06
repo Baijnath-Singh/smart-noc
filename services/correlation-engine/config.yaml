@@ -38,16 +38,16 @@ correlation:
   # Incident type patterns
   patterns:
     NETWORK_PERFORMANCE:
-      anomaly_types: [ "HIGH_CPU", "HIGH_MEMORY", "PACKET_LOSS" ]
+      anomaly_types: [ "HIGH_CPU", "HIGH_MEMORY", "PACKET_LOSS", "HIGH_CPU_SUSTAINED" ]
       min_devices: 2
 
     SECURITY_BREACH:
-      anomaly_types: [ "AUTH_FAILURE", "UNAUTHORIZED_ACCESS", "BRUTE_FORCE" ]
-      min_count: 2
+      anomaly_types: [ "AUTH_FAILURE", "UNAUTHORIZED_ACCESS", "BRUTE_FORCE", "AUTH_BRUTE_FORCE" ]
+      min_count: 2  # Now will detect our AUTH_BRUTE_FORCE anomalies!
 
     CONNECTIVITY_ISSUE:
-      anomaly_types: [ "INTERFACE_DOWN", "BGP_DOWN", "LINK_DOWN" ]
-      min_devices: 2
+      anomaly_types: [ "INTERFACE_DOWN", "BGP_DOWN", "LINK_DOWN", "INTERFACE_FLAPPING", "BGP_INSTABILITY" ]
+      min_devices: 1  # Changed from 2 to 1 - interface flapping on one device IS a connectivity issue!
 
     DEVICE_FAILURE:
       same_device: true

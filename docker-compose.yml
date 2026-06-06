@@ -338,14 +338,19 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MAX_RETRY_ATTEMPTS: 3
       REQUIRE_APPROVAL_ABOVE_SEVERITY: HIGH
+      CHROMADB_HOST: chromadb  # Phase 2: ChromaDB for remediation lessons
+      CHROMADB_PORT: 8000
     volumes:
       - ./services/remediation-agent:/app:ro
+      - ./services/vector-service:/vector_service:ro  # Phase 2: Mount vector service for ChromaDB
     depends_on:
       kafka:
         condition: service_healthy
       postgres:
         condition: service_healthy
       llm-diagnosis:
+        condition: service_started
+      chromadb:  # Phase 2: Wait for ChromaDB
         condition: service_started
     restart: unless-stopped
     networks:

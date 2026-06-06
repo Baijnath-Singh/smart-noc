@@ -59,6 +59,10 @@ def populate_vector_db(articles):
             'category': article['category']
         }
         
+        # Add platform if present (for vendor-specific articles)
+        if 'platform' in article:
+            metadata['platform'] = article['platform']
+        
         result = vector_kb.add_kb_article(
             article_id=article_id,
             title=title,

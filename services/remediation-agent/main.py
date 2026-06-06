@@ -6,6 +6,7 @@ using a LangGraph-based multi-step workflow.
 """
 import json
 import time
+import os
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
 import psycopg2
@@ -15,6 +16,16 @@ import sys
 
 from config import settings
 from workflow import RemediationAgent
+
+# Phase 2: Vector Service Integration for Remediation Lessons
+try:
+    sys.path.append('/vector_service')
+    from vector_service import VectorKnowledgeBase
+    VECTOR_SERVICE_AVAILABLE = True
+    logger.info("Vector service module loaded for remediation lessons")
+except ImportError as e:
+    logger.warning(f"Vector service not available: {e}")
+    VECTOR_SERVICE_AVAILABLE = False
 
 
 class RemediationService:
@@ -45,6 +56,19 @@ class RemediationService:
         
         # Database connection
         self.db_conn = self._init_database()
+        
+        # Phase 2: Initialize Vector Service for ChromaDB
+        self.vector_kb = None
+        if VECTOR_SERVICE_AVAILABLE:
+            try:
+                self.vector_kb = VectorKnowledgeBase(
+                    chromadb_host=os.getenv('CHROMADB_HOST', 'chromadb'),
+                    chromadb_port=int(os.getenv('CHROMADB_PORT', '8000'))
+                )
+                logger.info("✅ Vector KB initialized for remediation lessons storage")
+            except Exception as e:
+                logger.error(f"Failed to initialize Vector KB: {e}")
+                self.vector_kb = None
         
         # Statistics
         self.stats = {
@@ -163,9 +187,60 @@ class RemediationService:
                 self.db_conn.commit()
                 logger.debug(f"Remediation result saved to database")
                 
+                # Phase 2: Also save to ChromaDB for semantic search
+                if result['success'] and result.get('lessons_learned'):
+                    self._save_to_chromadb(result)
+                
         except Exception as e:
             logger.error(f"Failed to save remediation result: {e}")
             self.db_conn.rollback()
+    
+    def _save_to_chromadb(self, result: dict):
+        """Save remediation lessons to ChromaDB for semantic search (Phase 2)"""
+        if not self.vector_kb:
+            return
+        
+        try:
+            # Build document text for semantic search
+            incident_type = result.get('incident_type', 'UNKNOWN')
+            device = result.get('device', 'unknown')
+            actions = result.get('actions_summary', 'actions taken')
+            resolution_time = result.get('resolution_time', 0.0)
+            lessons = result.get('lessons_learned', '')
+            
+            document_text = f"""
+Incident Type: {incident_type}
+Device: {device}
+Actions: {actions}
+Resolution Time: {resolution_time:.1f}s
+Lesson: {lessons}
+""".strip()
+            
+            # Generate unique ID
+            doc_id = f"remediation_{result['incident_number']}_{int(time.time())}"
+            
+            # Store in ChromaDB remediation_commands collection
+            embedding = self.vector_kb.model.encode(document_text).tolist()
+            
+            self.vector_kb.commands.add(
+                ids=[doc_id],
+                embeddings=[embedding],
+                metadatas=[{
+                    'incident_type': incident_type,
+                    'incident_number': str(result['incident_number']),
+                    'device': device,
+                    'success': True,
+                    'resolution_time_seconds': float(resolution_time),
+                    'actions_count': result.get('actions_taken', 0),
+                    'stored_at': time.strftime('%Y-%m-%d %H:%M:%S')
+                }],
+                documents=[document_text]
+            )
+            
+            logger.info(f"✅ Saved remediation lesson to ChromaDB: {doc_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save to ChromaDB: {e}")
     
     def _publish_result(self, result: dict):
         """Publish remediation result to Kafka"""

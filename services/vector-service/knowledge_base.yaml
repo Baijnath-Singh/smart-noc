@@ -1302,3 +1302,3728 @@ articles:
       - Health checks: Auto-failover to backup DNS
       - Rate limiting: Prevent DNS amplification attacks
       - DNSSEC: Prevent cache poisoning
+
+  # ============================================================================
+  # EXTREME NETWORKS - EXOS ISSUES (5 articles)
+  # ============================================================================
+  - id: EXT-001
+    title: "EXOS Interface Flapping - Transceiver and Link Issues"
+    event_type: INTERFACE_FLAPPING
+    vendor: extreme
+    platform: exos
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      EXOS interface flapping indicates rapid link state transitions (up/down).
+      Most commonly caused by transceiver or physical layer issues.
+
+      Common Causes (Extreme EXOS):
+      1. Faulty or incompatible SFP/SFP+ module (45%)
+      2. Fiber connector dirty or damaged (25%)
+      3. Duplex or speed mismatch (15%)
+      4. Auto-negotiation issues (10%)
+      5. Laser power degradation or cable issues (5%)
+
+      EXOS Diagnostic Commands:
+      1. show ports <port> information detail
+         → Check link state, speed, duplex, auto-negotiation status
+      
+      2. show ports <port> transceiver information detail
+         → Verify optic type, vendor, TX/RX power levels, temperature
+      
+      3. show log messages | include <port>
+         → Review recent port up/down events and timestamps
+      
+      4. show ports <port> statistics
+         → Look for CRC errors, alignment errors, collisions
+      
+      5. show ports <port> rxerrors
+         → Detailed receive error counters
+
+      EXOS Remediation Steps:
+      1. Disable auto-negotiation and force settings:
+         # disable ports <port>
+         # configure ports <port> auto off speed 1000 duplex full
+         # enable ports <port>
+      
+      2. Reset port counters to baseline:
+         # clear counters ports <port>
+      
+      3. Check and clean fiber connectors:
+         → Use fiber inspection scope and cleaning tools
+         → Inspect both device and peer connectors
+      
+      4. Replace with Extreme certified transceiver:
+         # show ports <port> transceiver
+         → Verify compatibility with switch model
+         → Use only Extreme certified optics
+      
+      5. Check peer device configuration:
+         → Ensure matching speed/duplex settings
+         → Verify flow control settings match
+      
+      6. Test with known-good cable/transceiver:
+         → Swap transceiver with working port
+         → Use known-good patch cable
+
+      EXOS-Specific Best Practices:
+      - Use "configure ports <port> display-string <description>" for port labeling
+      - Enable "configure ports <port> jumbo-frame on" for MTU > 1500
+      - Monitor with "show ports transceiver" for optic health
+      - Use "show ports <port> utilization" to check bandwidth usage
+
+      Prevention:
+      - Use only Extreme certified optics (check compatibility matrix)
+      - Regular fiber inspection every 6 months
+      - Document working configurations with "show configuration"
+      - Enable port monitoring: "configure log target memory-buffer ports <port>"
+      - Maintain spare transceivers for rapid replacement
+
+  - id: EXT-002
+    title: "EXOS VLAN Misconfiguration and Port Assignment Issues"
+    event_type: CONNECTIVITY_ISSUE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.92
+    category: troubleshooting
+    content: |
+      EXOS VLAN configuration errors causing connectivity issues.
+      Common in port assignment, tagging, and default VLAN problems.
+
+      Common Causes (Extreme EXOS):
+      1. Port not added to correct VLAN (40%)
+      2. Tagged vs untagged mismatch (30%)
+      3. Default VLAN misconfigured (15%)
+      4. VLAN not created or inactive (10%)
+      5. Port tagging configuration error (5%)
+
+      EXOS Diagnostic Commands:
+      1. show vlan
+         → List all VLANs, ports, and tag status
+      
+      2. show vlan <vlan_name>
+         → Detailed VLAN information including member ports
+      
+      3. show ports <port> information detail
+         → Check VLAN membership and tagging for specific port
+      
+      4. show ports <port> vlan
+         → Display VLAN configuration for port
+      
+      5. show configuration | include vlan
+         → Review all VLAN-related configuration
+
+      EXOS Remediation Steps:
+      1. Create VLAN if missing:
+         # create vlan <vlan_name> tag <vlan_id>
+      
+      2. Add port to VLAN (untagged - access port):
+         # configure vlan <vlan_name> add ports <port> untagged
+      
+      3. Add port to VLAN (tagged - trunk port):
+         # configure vlan <vlan_name> add ports <port> tagged
+      
+      4. Remove port from incorrect VLAN:
+         # configure vlan <old_vlan> delete ports <port>
+      
+      5. Configure default VLAN for port:
+         # configure vlan default delete ports <port>
+         # configure vlan <vlan_name> add ports <port> untagged
+      
+      6. Enable VLAN:
+         # enable vlan <vlan_name>
+      
+      7. Verify configuration:
+         # show ports <port> vlan
+         # show vlan <vlan_name>
+
+      EXOS-Specific Features:
+      - VLAN names are case-sensitive in EXOS
+      - Default VLAN is named "Default" (VLAN 1)
+      - Use "show ports info detail" to see all VLAN assignments
+      - EXOS supports VLAN translation for service provider scenarios
+
+      Common EXOS VLAN Patterns:
+      - Access Port: configure vlan DATA add ports 1:1 untagged
+      - Trunk Port: configure vlan DATA,VOICE,MGMT add ports 1:24 tagged
+      - Native VLAN on Trunk: configure vlan NATIVE add ports 1:24 untagged
+
+      Prevention:
+      - Document VLAN design in "configure ports <port> display-string"
+      - Use consistent VLAN naming convention
+      - Save configuration regularly: "save configuration"
+      - Use VLAN templates for consistent deployment
+      - Enable VLAN status monitoring: "show vlan" in monitoring scripts
+
+  - id: EXT-003
+    title: "EXOS High CPU - Process and Resource Troubleshooting"
+    event_type: HIGH_CPU_SUSTAINED
+    vendor: extreme
+    platform: exos
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      EXOS high CPU utilization affecting switch performance.
+      Can cause slow CLI response, packet loss, or control plane instability.
+
+      Common Causes (Extreme EXOS):
+      1. High rate of control traffic (ARP, STP, IGMP) (35%)
+      2. Excessive logging or debugging enabled (25%)
+      3. Software process malfunction (20%)
+      4. High rate of routing updates or ACL lookups (15%)
+      5. DDoS or broadcast storm (5%)
+
+      EXOS Diagnostic Commands:
+      1. show cpu
+         → Display current CPU utilization by process
+      
+      2. show process <process_name>
+         → Detailed information about specific process
+      
+      3. show switch
+         → Overall switch status including CPU load
+      
+      4. show log messages
+         → Review recent system messages for errors
+      
+      5. show ports utilization
+         → Check for abnormal traffic patterns
+      
+      6. show management
+         → Check CLI sessions and management traffic
+      
+      7. show cpu detail
+         → Extended CPU statistics by task
+
+      EXOS Remediation Steps:
+      1. Identify top CPU consuming processes:
+         # show cpu
+         → Note processes with high CPU %
+      
+      2. Disable excessive logging:
+         # configure log target memory-buffer filter defaultfilter severity info
+         # disable log target console
+         # disable log target syslog
+      
+      3. Disable debug if enabled:
+         # show debug
+         # disable debug <module>
+      
+      4. Check for broadcast storms:
+         # show ports statistics | include Broadcast
+         → If high: enable storm control
+         # configure ports <port> broadcast-limit <pps>
+      
+      5. Limit control traffic:
+         # configure cpu-dos-protect type arp rate-limit 1000
+         # enable cpu-dos-protect
+      
+      6. Review ACL and QoS configuration:
+         # show access-list
+         # show qosprofile
+         → Simplify if overly complex
+      
+      7. Restart problematic process (last resort):
+         # restart process <process_name>
+
+      EXOS-Specific CPU Management:
+      - EXOS has CPU rate limiters for control plane protection
+      - Use "show cpu-monitoring" for historical CPU data
+      - "show process monitor" displays real-time process activity
+      - CPU-DoS-Protect feature protects against control plane attacks
+
+      Prevention:
+      - Enable CPU rate limiting: "enable cpu-dos-protect"
+      - Limit management access: Use ACLs on management VLANs
+      - Reduce logging verbosity in production
+      - Regular software updates to latest stable EXOS version
+      - Monitor CPU trends: "configure cpu-monitoring interval 60"
+      - Implement storm control on access ports
+
+  - id: EXT-004
+    title: "EXOS Memory Exhaustion and Resource Management"
+    event_type: HIGH_MEMORY
+    vendor: extreme
+    platform: exos
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      EXOS memory exhaustion can cause system instability, process crashes,
+      or inability to learn new MAC addresses, routes, or ARP entries.
+
+      Common Causes (Extreme EXOS):
+      1. MAC address table overflow (30%)
+      2. ARP table full (25%)
+      3. Routing table too large (20%)
+      4. Log buffer full (15%)
+      5. Memory leak in software process (10%)
+
+      EXOS Diagnostic Commands:
+      1. show memory
+         → Display total, used, and free memory
+      
+      2. show fdb
+         → Check MAC address table entries
+      
+      3. show iparp
+         → Display ARP table utilization
+      
+      4. show iproute
+         → Check routing table size
+      
+      5. show process memory
+         → Memory usage by process
+      
+      6. show switch
+         → Overall system resources
+      
+      7. show log messages | include memory
+         → Search for memory-related errors
+
+      EXOS Remediation Steps:
+      1. Check memory utilization:
+         # show memory
+         → If > 85%: Immediate action needed
+      
+      2. Clear dynamic MAC addresses:
+         # clear fdb
+         → Clears learned (not static) MAC entries
+      
+      3. Clear ARP table:
+         # clear iparp
+         → Forces ARP relearning
+      
+      4. Reduce ARP aging time:
+         # configure iparp aging-time 300
+         → Default is 1200 seconds
+      
+      5. Clear old log messages:
+         # clear log messages
+      
+      6. Reduce MAC aging time:
+         # configure fdb agingtime 120
+         → Default is 300 seconds
+      
+      7. Identify memory-hungry process:
+         # show process memory
+         # restart process <process_name> (if identified)
+      
+      8. Reload switch if critical (last resort):
+         # reboot
+         → Only if system unstable and no other options
+
+      EXOS Memory Management Features:
+      - EXOS dynamically allocates memory to tables
+      - Use "show switch detail" for hardware resource limits
+      - MAC/ARP/Route table sizes vary by platform
+      - Some platforms support expanded tables with license
+
+      Prevention:
+      - Monitor memory trends with SNMP or monitoring tools
+      - Configure appropriate aging times for MAC/ARP
+      - Implement port security to limit MAC learning per port:
+        # enable mac-locking ports <port> first-arrival limit-learning 10
+      - Use VLANs to segment broadcast domains
+      - Regular software updates for memory leak fixes
+      - Document normal memory baseline for comparison
+      - Enable proactive alerts: Configure SNMP traps for memory thresholds
+
+  - id: EXT-005
+    title: "EXOS Power Supply and Hardware Failure Detection"
+    event_type: DEVICE_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      EXOS power supply failures or hardware component issues.
+      Can cause partial or complete system failure if not addressed.
+
+      Common Causes (Extreme EXOS):
+      1. Power supply unit (PSU) failure (50%)
+      2. Fan failure causing overheating (25%)
+      3. Temperature sensor alerts (15%)
+      4. Redundant PSU not functioning (7%)
+      5. Power source or cable issues (3%)
+
+      EXOS Diagnostic Commands:
+      1. show power
+         → Display all PSU status and power consumption
+      
+      2. show fans
+         → Check fan status and RPM
+      
+      3. show temperature
+         → Display temperature sensors and thresholds
+      
+      4. show slot
+         → Check module/card status (for chassis systems)
+      
+      5. show switch
+         → Overall system health including hardware
+      
+      6. show log messages | include power|fan|temperature
+         → Review hardware-related alerts
+
+      EXOS Remediation Steps:
+      1. Check PSU status:
+         # show power
+         → Look for "Failed" or "NotPresent" status
+      
+      2. Verify power connections:
+         → Check power cable connections
+         → Verify power source (UPS, PDU)
+         → Test with different power cable if available
+      
+      3. Check fan status:
+         # show fans
+         → If failed: Replace fan module immediately
+         → Check for obstructions or dust buildup
+      
+      4. Monitor temperature:
+         # show temperature
+         → If > 60°C: Check cooling
+         → Verify proper rack airflow (front-to-back)
+      
+      5. For dual PSU systems:
+         → Verify both PSUs operational
+         → Load-sharing vs redundant mode
+         → Replace failed PSU while system running (hot-swap)
+      
+      6. Save configuration before maintenance:
+         # save configuration
+      
+      7. Schedule maintenance window if critical:
+         → Some hardware fixes require downtime
+
+      EXOS PSU Configuration:
+      - Dual PSU systems support hot-swap
+      - PSU modes: redundant (N+1) or load-sharing
+      - Check PSU model compatibility: show switch detail
+      - Some platforms support AC/DC power supply mixing
+
+      EXOS Environmental Monitoring:
+      - Temperature thresholds: Warning ~55°C, Critical ~70°C
+      - Use "show temperature detail" for per-sensor readings
+      - Enable environmental traps for proactive alerting
+      - Regular cleaning: Vacuum intake/exhaust areas quarterly
+
+      Prevention:
+      - Use redundant power supplies in production
+      - Connect PSUs to separate power circuits/UPS
+      - Regular environmental monitoring via SNMP
+      - Clean air intakes quarterly
+      - Verify proper rack ventilation
+      - Maintain spare PSU and fan modules
+      - Document PSU model numbers for rapid replacement
+      - Enable SNMP traps: "enable snmp traps power fan temperature"
+
+  # ============================================================================
+  # EXTREME NETWORKS - VOSS ISSUES (5 articles)
+  # ============================================================================
+  - id: EXT-006
+    title: "VOSS Port Down - Link Layer Discovery and Troubleshooting"
+    event_type: INTERFACE_DOWN
+    vendor: extreme
+    platform: voss
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      VOSS (Virtual Services Platform OS) port down troubleshooting.
+      VSP series switches use VOSS OS with different command syntax than EXOS.
+
+      Common Causes (Extreme VOSS):
+      1. Physical layer issue - cable or transceiver (45%)
+      2. Port administratively disabled (20%)
+      3. Spanning Tree blocking (15%)
+      4. Speed/duplex mismatch (12%)
+      5. Error disable feature triggered (8%)
+
+      VOSS Diagnostic Commands:
+      1. show interfaces gigabitEthernet <port>
+         → Port status, speed, duplex, errors
+      
+      2. show interfaces gigabitEthernet name "<port_name>"
+         → Port info by configured name
+      
+      3. show interfaces gigabitEthernet state
+         → Quick overview of all port states
+      
+      4. show lldp neighbor
+         → Verify connected device via LLDP
+      
+      5. show spanning-tree rstp port-role
+         → Check if port is blocked by RSTP
+      
+      6. show error-disable
+         → Check if port auto-disabled due to errors
+
+      VOSS Remediation Steps:
+      1. Enable port if administratively down:
+         (config)# interface gigabitEthernet <port>
+         (config-if)# no shutdown
+         (config-if)# exit
+      
+      2. Force speed and duplex:
+         (config)# interface gigabitEthernet <port>
+         (config-if)# speed 1000
+         (config-if)# duplex full
+         (config-if)# no auto-negotiate
+         (config-if)# exit
+      
+      3. Check and clear error-disable:
+         # show error-disable
+         (config)# interface gigabitEthernet <port>
+         (config-if)# error-disable recovery
+         (config-if)# exit
+      
+      4. Verify cabling:
+         → Check cable connection both ends
+         → Test with known-good cable
+         → Verify transceiver seated properly
+      
+      5. Check spanning tree:
+         # show spanning-tree rstp
+         → If blocking: Review topology
+         → Adjust port priority if needed
+      
+      6. Enable port description for documentation:
+         (config-if)# name "<description>"
+
+      VOSS-Specific Features:
+      - VOSS uses Cisco-like CLI syntax (unlike EXOS)
+      - Port format: gigabitEthernet <slot/port>
+      - Use "show tech" for comprehensive diagnostic output
+      - MLT (Multi-Link Trunking) for link aggregation
+
+      VOSS Port Configuration Examples:
+      - Access port: interface GigabitEthernet 1/1 → no shutdown
+      - Description: name "Server-Port-Prod"
+      - Speed: speed 1000, duplex full
+      - Enable: no shutdown
+
+      Prevention:
+      - Use "name" command to label ports clearly
+      - Enable LLDP: "lldp run" globally
+      - Regular cable testing and documentation
+      - Monitor port status via SNMP
+      - Use MLT for critical uplinks (redundancy)
+
+  - id: EXT-007
+    title: "VOSS OSPF Neighbor Down - Routing Protocol Troubleshooting"
+    event_type: BGP_INSTABILITY
+    vendor: extreme
+    platform: voss
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      VOSS OSPF neighbor adjacency failures preventing route learning.
+      Common in VSP routing configurations.
+
+      Common Causes (Extreme VOSS):
+      1. Interface down or unreachable (30%)
+      2. Area mismatch (25%)
+      3. Authentication mismatch (20%)
+      4. Network type mismatch (15%)
+      5. Hello/dead timer mismatch (10%)
+
+      VOSS Diagnostic Commands:
+      1. show ip ospf neighbor
+         → Display OSPF neighbor states and timers
+      
+      2. show ip ospf interface
+         → OSPF-enabled interfaces and their parameters
+      
+      3. show ip ospf
+         → General OSPF process information
+      
+      4. show ip ospf area
+         → Area configuration details
+      
+      5. show ip route ospf
+         → Routes learned via OSPF
+      
+      6. show log tail 50 | include OSPF
+         → Recent OSPF-related log messages
+
+      VOSS Remediation Steps:
+      1. Verify interface status:
+         # show interfaces gigabitEthernet <port>
+         → Must be "up" for OSPF adjacency
+      
+      2. Check OSPF configuration:
+         # show running-config | include router ospf
+         → Verify process ID and networks
+      
+      3. Verify area consistency:
+         (config)# router ospf
+         (config-ospf)# show ip ospf interface
+         → Both neighbors must be in same area
+      
+      4. Check authentication:
+         (config)# interface gigabitEthernet <port>
+         (config-if)# ip ospf authentication-key <key>
+         → Must match on both sides
+      
+      5. Verify network type:
+         (config-if)# show ip ospf interface
+         → Point-to-point, broadcast, etc. must match
+      
+      6. Check hello/dead timers:
+         # show ip ospf interface | include Hello
+         (config-if)# ip ospf hello-interval 10
+         (config-if)# ip ospf dead-interval 40
+         → Must match between neighbors
+      
+      7. Enable OSPF debugging (temporary):
+         # debug ip ospf adj
+         → Monitor adjacency formation
+         # no debug all (when done)
+
+      VOSS OSPF Configuration Examples:
+      - Enable OSPF:
+        (config)# router ospf
+        (config-ospf)# router-id 1.1.1.1
+        (config-ospf)# enable
+      
+      - Add interface to area:
+        (config)# interface gigabitEthernet 1/1
+        (config-if)# ip address 10.1.1.1/24
+        (config-if)# ip ospf enable
+        (config-if)# ip ospf area 0.0.0.0
+      
+      - Authentication (MD5):
+        (config-if)# ip ospf message-digest-key 1 md5 <password>
+        (config-if)# ip ospf authentication message-digest
+
+      VOSS-Specific OSPF Features:
+      - Supports OSPF v2 (IPv4) and v3 (IPv6)
+      - Default hello: 10s, dead: 40s
+      - Use "show ip ospf database" for LSA inspection
+      - VSP supports multi-area OSPF and route redistribution
+
+      Prevention:
+      - Document OSPF design: Areas, router IDs, authentication
+      - Use consistent timers across all OSPF routers
+      - Enable authentication for security
+      - Monitor OSPF neighbor states via SNMP
+      - Regular configuration backups: "save config"
+
+  - id: EXT-008
+    title: "VOSS Spanning Tree Loop Detection and Prevention"
+    event_type: NETWORK_PERFORMANCE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.86
+    category: troubleshooting
+    content: |
+      VOSS Spanning Tree Protocol (STP) loop detection and mitigation.
+      Loops cause broadcast storms, high CPU, and network outages.
+
+      Common Causes (Extreme VOSS):
+      1. STP disabled on one or more switches (40%)
+      2. Incorrect BPDU handling (25%)
+      3. One-way link failure (15%)
+      4. Mismatched STP modes (RSTP vs STP) (12%)
+      5. Port misconfiguration (edge vs non-edge) (8%)
+
+      VOSS Diagnostic Commands:
+      1. show spanning-tree rstp
+         → Global RSTP status and root bridge
+      
+      2. show spanning-tree rstp port-role
+         → Port roles: Root, Designated, Alternate
+      
+      3. show spanning-tree rstp port-config
+         → Per-port STP configuration
+      
+      4. show interfaces gigabitEthernet statistics
+         → Look for excessive broadcasts
+      
+      5. show cpu
+         → High CPU may indicate broadcast storm
+      
+      6. show mac-address-table count
+         → Flapping MAC addresses indicate loop
+
+      VOSS Remediation Steps:
+      1. Verify RSTP is enabled globally:
+         # show spanning-tree rstp
+         (config)# spanning-tree rstp enable
+      
+      2. Identify loop location:
+         # show interfaces gigabitEthernet statistics | include Broadcast
+         → Port with abnormally high broadcast count
+      
+      3. Emergency: Shutdown suspect port:
+         (config)# interface gigabitEthernet <port>
+         (config-if)# shutdown
+      
+      4. Enable BPDU guard on access ports:
+         (config-if)# spanning-tree rstp edge-port true
+         (config-if)# spanning-tree rstp bpdu-guard enable
+      
+      5. Configure root bridge properly:
+         (config)# spanning-tree rstp priority 0
+         → Lower priority = preferred root
+      
+      6. Enable port-fast on access ports:
+         (config-if)# spanning-tree rstp edge-port true
+         → Faster convergence, skip listening/learning
+      
+      7. Verify consistent STP mode:
+         # show spanning-tree rstp
+         → All switches should run RSTP (802.1w)
+
+      VOSS STP Best Practices:
+      - Use RSTP (Rapid Spanning Tree) for faster convergence
+      - Configure root bridge explicitly (don't rely on defaults)
+      - Enable BPDU guard on all access ports
+      - Use edge-port for hosts, disable for switches
+      - Monitor root bridge changes (SNMP traps)
+
+      VOSS STP Configuration Examples:
+      - Enable RSTP globally:
+        (config)# spanning-tree rstp enable
+      
+      - Set root bridge:
+        (config)# spanning-tree rstp priority 4096
+      
+      - Access port configuration:
+        (config)# interface gigabitEthernet 1/1-24
+        (config-if)# spanning-tree rstp edge-port true
+        (config-if)# spanning-tree rstp bpdu-guard enable
+      
+      - Uplink port:
+        (config)# interface gigabitEthernet 1/25-26
+        (config-if)# spanning-tree rstp edge-port false
+
+      Prevention:
+      - Always enable RSTP on all switches
+      - Document STP topology and root bridge
+      - Use consistent STP mode across network
+      - Enable BPDU guard on access ports
+      - Monitor topology changes via syslog/SNMP
+      - Regular STP configuration audits
+
+  - id: EXT-009
+    title: "VOSS LAG (Link Aggregation) Configuration and Troubleshooting"
+    event_type: CONNECTIVITY_ISSUE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      VOSS MLT (Multi-Link Trunking) / LAG configuration issues.
+      VSP series uses MLT for link aggregation (similar to LAG/Port-Channel).
+
+      Common Causes (Extreme VOSS):
+      1. Member port configuration mismatch (35%)
+      2. LACP mode mismatch (active vs passive) (25%)
+      3. One or more member ports down (20%)
+      4. VLAN configuration inconsistent (15%)
+      5. Physical cabling issues (5%)
+
+      VOSS Diagnostic Commands:
+      1. show mlt
+         → Display all MLT trunks and member ports
+      
+      2. show mlt <mlt_id>
+         → Detailed MLT information
+      
+      3. show lacp
+         → LACP protocol status
+      
+      4. show interfaces gigabitEthernet mlt-port
+         → Ports assigned to MLTs
+      
+      5. show vlan mlt
+         → VLAN assignment on MLT
+
+      VOSS Remediation Steps:
+      1. Create MLT trunk:
+         (config)# mlt <mlt_id>
+         (config-mlt)# enable
+         (config-mlt)# exit
+      
+      2. Add member ports:
+         (config)# interface gigabitEthernet <port_range>
+         (config-if)# mlt <mlt_id>
+         (config-if)# lacp enable
+         (config-if)# exit
+      
+      3. Verify all member ports are up:
+         # show interfaces gigabitEthernet state
+         → All MLT members must be "up"
+      
+      4. Check LACP status:
+         # show lacp
+         → Verify active aggregation
+      
+      5. Ensure consistent port configuration:
+         → All MLT members must have same:
+           - Speed and duplex
+           - VLAN configuration
+           - STP settings
+      
+      6. Configure VLAN on MLT:
+         (config)# vlan members add <vlan_id> <mlt_id>
+      
+      7. Verify load distribution:
+         # show mlt <mlt_id> statistics
+         → Check traffic distribution across members
+
+      VOSS MLT Configuration Examples:
+      - Create MLT with two ports:
+        (config)# mlt 1
+        (config-mlt)# name "Uplink-To-Core"
+        (config-mlt)# enable
+        (config-mlt)# exit
+        
+        (config)# interface gigabitEthernet 1/25-1/26
+        (config-if)# mlt 1
+        (config-if)# lacp key 1
+        (config-if)# lacp enable
+        (config-if)# exit
+      
+      - Add VLANs to MLT:
+        (config)# vlan members add 10,20,30 mlt 1
+
+      VOSS-Specific MLT Features:
+      - MLT = Multi-Link Trunking (VSP terminology)
+      - Supports up to 8 ports per MLT
+      - LACP (802.3ad) for dynamic aggregation
+      - Load balancing: src-dst-mac, src-dst-ip
+      - MLT IDs: 1-512 range
+
+      VOSS Load Balancing:
+      - Default: src-dst-mac hashing
+      - Configure: (config)# mlt load-balance <algorithm>
+      - Options: src-dst-mac, src-dst-ip, src-dst-port
+
+      Prevention:
+      - Use consistent port speeds across MLT members
+      - Enable LACP for dynamic failure detection
+      - Document MLT IDs and purpose
+      - Monitor MLT status via SNMP
+      - Use VLANs on MLT instead of individual ports
+      - Regular cable testing on MLT members
+
+  - id: EXT-010
+    title: "VOSS Software Version Mismatch and Upgrade Issues"
+    event_type: DEVICE_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      VOSS software version issues, upgrade problems, and compatibility.
+      VSP series software management and troubleshooting.
+
+      Common Causes (Extreme VOSS):
+      1. Incompatible software version with hardware (30%)
+      2. Insufficient flash space for new image (25%)
+      3. Corrupted software image (20%)
+      4. Failed upgrade procedure (15%)
+      5. License incompatibility (10%)
+
+      VOSS Diagnostic Commands:
+      1. show software
+         → Display current and installed software versions
+      
+      2. show boot config
+         → Boot configuration and image selection
+      
+      3. show sys-info
+         → System information including software version
+      
+      4. dir
+         → List files in flash storage
+      
+      5. show license
+         → Display installed licenses
+      
+      6. show log tail 100
+         → Recent system messages
+
+      VOSS Software Management Steps:
+      1. Check current version:
+         # show software
+         → Note primary, secondary, and boot flags
+      
+      2. Verify available flash space:
+         # dir
+         → Ensure sufficient space (typically need 150MB+)
+      
+      3. Download software image (via TFTP/SFTP):
+         # software add <protocol>://<server>/<filename>
+         Example: software add tftp://10.1.1.100/VOSS9400.tgz
+      
+      4. Activate new software:
+         # software activate <version>
+         → Sets boot flag for new version
+      
+      5. Commit new software (after testing):
+         # software commit
+         → Makes new version permanent
+      
+      6. Reboot to new version:
+         # reset -y
+      
+      7. Verify after reboot:
+         # show software
+         # show sys-info
+
+      VOSS Software Upgrade Best Practices:
+      - Always backup configuration:
+        # copy config tftp://<server>/<filename>
+      
+      - Check release notes for known issues
+      - Verify hardware compatibility matrix
+      - Test in lab/dev environment first
+      - Schedule maintenance window
+      - Have console access during upgrade
+      - Keep old version as rollback option
+
+      VOSS Rollback Procedure:
+      1. If new version has issues:
+         # software activate <old_version>
+         # reset -y
+      
+      2. If system won't boot:
+         → Use bootloader recovery mode
+         → Press Ctrl-Y during boot
+         → Boot to alternate image
+
+      VOSS License Management:
+      - Check required licenses:
+        # show license
+      
+      - Install license file:
+        # license install <tftp/usb>://<filename>
+      
+      - Some features require additional licenses:
+        → Advanced routing (OSPF, BGP)
+        → Fabric Attach
+        → Premier or Advanced license tier
+
+      Common VOSS Version Issues:
+      - VOSS 9.x: Latest, recommended for new deployments
+      - VOSS 8.x: Mature, stable for existing networks
+      - Check "End of Support" dates on Extreme website
+      - VSP 4000/7000/8000 have different image files
+      - XA1400 uses separate VOSS image
+
+      Prevention:
+      - Maintain consistent software versions across network
+      - Document software versions in CMDB
+      - Subscribe to Extreme security advisories
+      - Regular maintenance windows for updates
+      - Keep one version back as rollback image
+      - Test configuration backup/restore procedures
+      - Monitor flash space usage via SNMP
+
+  # ============================================================================
+  # EXTREME NETWORKS - INTERFACE/PHYSICAL ISSUES (EXT-011 to EXT-020)
+  # ============================================================================
+
+  - id: EXT-011
+    title: "EXOS Fiber Optic Link Quality Issues and Light Level Testing"
+    event_type: INTERFACE_FLAPPING
+    vendor: extreme
+    platform: exos
+    success_rate: 0.91
+    category: troubleshooting
+    content: |
+      Fiber optic link quality problems, light level issues, and optical diagnostics.
+      Common with SFP/SFP+ modules and fiber connectivity.
+
+      Common Causes (Extreme EXOS):
+      1. Low optical power levels (40%) - Dirty connectors, bad fiber
+      2. SFP transceiver failure (25%) - Failing or incompatible module
+      3. Fiber bend radius exceeded (15%) - Physical damage
+      4. Wavelength mismatch (10%) - Wrong SFP type (850nm vs 1310nm)
+      5. Distance limitations exceeded (10%) - Cable too long for SFP type
+
+      EXOS Diagnostic Commands:
+      1. show ports <port> transceiver information detail
+         → Optical power levels (TX/RX), temperature, voltage
+      
+      2. show ports <port> information detail
+         → Port status, speed, duplex, errors
+      
+      3. show ports <port> statistics
+         → CRC errors, collisions, drops
+      
+      4. show log messages | include <port>
+         → Port-related error messages
+      
+      5. show ports <port> utilization
+         → Bandwidth usage and patterns
+
+      EXOS Fiber Optic Troubleshooting:
+      1. Check optical power levels:
+         # show ports 1:10 transceiver information detail
+         → TX Power: Should be -8 to 0 dBm (typical)
+         → RX Power: Should be -14 to -1 dBm (typical)
+         → If RX Power < -20 dBm: Bad fiber or dirty connector
+      
+      2. Identify transceiver type:
+         → SR: Short Range (850nm, up to 300m)
+         → LR: Long Range (1310nm, up to 10km)
+         → LX: Extended (1310nm, up to 10km)
+         → ZR: Ultra Long (1550nm, up to 80km)
+      
+      3. Clean fiber connectors:
+         → Use proper fiber cleaning kit
+         → Inspect with fiber scope
+         → Clean both ends (switch + remote)
+      
+      4. Test with known good SFP:
+         # disable ports 1:10
+         → Replace SFP with known good module
+         # enable ports 1:10
+         → Recheck optical levels
+      
+      5. Check for errors:
+         # show ports 1:10 statistics
+         → High CRC errors indicate fiber issues
+         → High alignment errors indicate speed mismatch
+
+      EXOS Remediation Steps:
+      - If dirty connectors:
+        → Clean with IPA and lint-free wipes
+        → Use fiber scope to verify cleanliness
+      
+      - If low RX power:
+        → Replace fiber patch cable
+        → Check fiber run for damage/bends
+      
+      - If SFP failure:
+        → Replace with Extreme certified SFP
+        → Check Extreme compatibility matrix
+      
+      - If distance exceeded:
+        → Use appropriate SFP type (LR/ZR for long distance)
+        → Consider adding media converter
+      
+      - If wavelength mismatch:
+        → Ensure both ends use same SFP type
+        → 850nm SFPs require multimode fiber
+        → 1310nm/1550nm SFPs require singlemode fiber
+
+      EXOS Port Reset Procedure:
+      1. Disable port:
+         # disable ports 1:10
+      
+      2. Force no auto-negotiation:
+         # configure ports 1:10 auto off
+      
+      3. Set speed/duplex manually:
+         # configure ports 1:10 speed 10000 duplex full
+      
+      4. Re-enable port:
+         # enable ports 1:10
+      
+      5. Monitor for stability:
+         # show ports 1:10 information detail
+
+      Prevention:
+      - Use only Extreme certified optics
+      - Regular fiber inspection and cleaning
+      - Proper cable management (avoid tight bends)
+      - Label fiber runs clearly
+      - Keep spare SFPs on hand
+      - Monitor optical levels via SNMP
+      - Document fiber types and distances
+
+  - id: EXT-012
+    title: "EXOS Port Error Storm and CRC Errors"
+    event_type: INTERFACE_ERRORS
+    vendor: extreme
+    platform: exos
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      High error rates, CRC errors, and packet drops on EXOS interfaces.
+      Indicates physical layer or configuration issues.
+
+      Common Causes (Extreme EXOS):
+      1. Duplex mismatch (35%) - One side auto, other side forced
+      2. Bad cable or connector (30%) - Physical damage
+      3. EMI/noise on copper links (15%) - Interference
+      4. MTU mismatch (10%) - Jumbo frames misconfigured
+      5. Flow control issues (10%) - Pause frame problems
+
+      EXOS Diagnostic Commands:
+      1. show ports <port> statistics
+         → CRC errors, collisions, TX/RX drops
+      
+      2. show ports <port> information detail
+         → Speed, duplex, auto-negotiation status
+      
+      3. show ports <port> configuration
+         → Port settings and capabilities
+      
+      4. show log messages error | include <port>
+         → Error messages related to port
+      
+      5. clear counters ports <port>
+         → Reset counters to monitor fresh data
+
+      EXOS Error Analysis:
+      1. CRC Errors (FCS errors):
+         → Indicates physical layer problems
+         → Bad cable, connectors, or EMI
+         → Check: show ports 1:10 statistics | include CRC
+      
+      2. Alignment Errors:
+         → Speed or duplex mismatch
+         → Faulty NIC on connected device
+         → Check: show ports 1:10 information detail
+      
+      3. Collisions (half-duplex only):
+         → Normal in half-duplex up to 10%
+         → Excessive collisions indicate network issues
+         → Late collisions always indicate problems
+      
+      4. Overruns/Underruns:
+         → CPU cannot keep up with traffic
+         → Flow control may need enabling
+      
+      5. Giants/Runts:
+         → Giants: Frames > 1518 bytes (normal with jumbo frames)
+         → Runts: Frames < 64 bytes (always bad)
+
+      EXOS Remediation Steps:
+      1. Fix duplex mismatch:
+         # show ports 1:10 information detail
+         → If local=full, remote=half (MISMATCH!)
+         # configure ports 1:10 auto off speed 1000 duplex full
+         → Force both ends to same setting
+      
+      2. Replace bad cable:
+         # disable ports 1:10
+         → Replace cable with known good Cat6/Cat6a
+         # enable ports 1:10
+         → Monitor errors: clear counters ports 1:10
+      
+      3. Enable flow control:
+         # configure ports 1:10 flow-control rx on tx on
+         → Helps prevent overruns
+      
+      4. Adjust MTU for jumbo frames:
+         # configure jumbo-frame-size 9216 ports 1:10
+         → Must match across all hops
+      
+      5. Isolate EMI issues:
+         → Use shielded cables
+         → Keep away from power cables
+         → Test with different cable path
+
+      EXOS Port Troubleshooting Procedure:
+      1. Baseline error counters:
+         # clear counters ports 1:10
+         # show ports 1:10 statistics
+      
+      2. Wait 5 minutes, re-check:
+         # show ports 1:10 statistics
+         → Calculate errors/second rate
+      
+      3. If >1% error rate:
+         → Investigate physical layer
+      
+      4. Check auto-negotiation:
+         # show ports 1:10 information detail
+         → Actual: Should match Configured
+      
+      5. Test with forced settings:
+         # configure ports 1:10 auto off speed 1000 duplex full
+
+      Prevention:
+      - Use quality certified cables
+      - Avoid forcing speed/duplex (use auto when possible)
+      - Regular cable testing with TDR
+      - Proper cable management
+      - Monitor error rates via SNMP
+      - Baseline error counters after installation
+
+  - id: EXT-013
+    title: "VOSS Port Authentication and 802.1X Issues"
+    event_type: AUTH_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      Port-based authentication failures, 802.1X issues, and NAC problems on VOSS.
+      Common in environments with RADIUS authentication.
+
+      Common Causes (Extreme VOSS):
+      1. RADIUS server unreachable (35%) - Network or server down
+      2. Incorrect shared secret (25%) - Mismatch between switch and RADIUS
+      3. Client supplicant misconfigured (20%) - Wrong credentials
+      4. VLAN assignment issues (10%) - Dynamic VLAN not configured
+      5. Port configuration errors (10%) - Wrong auth mode
+
+      VOSS Diagnostic Commands:
+      1. show radius
+         → RADIUS server status and statistics
+      
+      2. show eapol
+         → 802.1X global status
+      
+      3. show eapol port <port>
+         → Per-port 802.1X status
+      
+      4. show eapol session <port>
+         → Active authentication sessions
+      
+      5. show log tail 50 | include RADIUS
+         → RADIUS-related log messages
+      
+      6. show vlan members
+         → VLAN assignment verification
+
+      VOSS 802.1X Configuration Check:
+      1. Verify RADIUS server config:
+         (config)# show radius
+         → Check server IP, status, shared secret configured
+      
+      2. Enable 802.1X globally:
+         (config)# eapol enable
+      
+      3. Configure RADIUS server:
+         (config)# radius server host <ip> key <secret>
+         (config)# radius server host <ip> enable
+      
+      4. Set RADIUS authentication:
+         (config)# radius authentication mode eap-md5
+      
+      5. Enable on specific ports:
+         (config)# interface gigabitEthernet 1/10
+         (config-if)# eapol enable
+         (config-if)# eapol multihost enable
+         (config-if)# eapol port re-authentication enable
+      
+      6. Configure dynamic VLAN assignment:
+         (config)# eapol re-authentication-enabled
+         (config)# eapol guest-vlan <vlan-id>
+         (config)# eapol fail-open-vlan <vlan-id>
+
+      VOSS RADIUS Troubleshooting:
+      1. Test RADIUS connectivity:
+         # ping <radius-server-ip>
+         → Verify network reachability
+      
+      2. Check RADIUS statistics:
+         # show radius
+         → Look for authentication failures
+         → Check response times
+      
+      3. Verify shared secret:
+         (config)# radius server host <ip> key <new-secret>
+         → Must match RADIUS server exactly
+      
+      4. Enable RADIUS debug:
+         (config)# debug radius
+         → Watch authentication attempts
+      
+      5. Test with known working client:
+         → Use laptop with working 802.1X profile
+
+      VOSS Remediation Steps:
+      - If RADIUS unreachable:
+        → Verify network path to RADIUS server
+        → Check firewalls allowing UDP 1812/1813
+        → Test with ping and traceroute
+      
+      - If shared secret mismatch:
+        → Update switch configuration
+        → Verify no trailing spaces in secret
+        → Use secure complex secret
+      
+      - If client issues:
+        → Check supplicant configuration
+        → Verify user credentials in RADIUS
+        → Try manual re-authentication
+      
+      - If VLAN assignment fails:
+        → Verify VLAN exists on switch
+        → Check RADIUS returns correct VLAN attribute
+        → Configure guest VLAN for failures
+      
+      - If MAB (MAC Authentication Bypass) needed:
+        (config-if)# eapol re-authentication enable
+        (config-if)# eapol multihost enable
+
+      VOSS Force Re-Authentication:
+      1. Re-authenticate specific port:
+         # eapol force-auth interface gigabitEthernet 1/10
+      
+      2. Clear 802.1X sessions:
+         # clear eapol session interface gigabitEthernet 1/10
+      
+      3. Monitor authentication attempt:
+         # show eapol port 1/10
+         # show log tail 20
+
+      Prevention:
+      - Use redundant RADIUS servers
+      - Document shared secrets securely
+      - Test 802.1X before production rollout
+      - Configure fail-open or guest VLANs
+      - Monitor RADIUS server health
+      - Regular credential audits
+      - Backup authentication methods (local fallback)
+
+  - id: EXT-014
+    title: "EXOS Link Aggregation (LAG) Member Port Failure"
+    event_type: INTERFACE_DOWN
+    vendor: extreme
+    platform: exos
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      Link Aggregation Group (LAG/LACP) member port failures and uneven load distribution.
+      EXOS sharing configuration troubleshooting.
+
+      Common Causes (Extreme EXOS):
+      1. Physical link failure (40%) - Cable, SFP, or port issue
+      2. LACP misconfiguration (25%) - Mismatched parameters
+      3. Speed/duplex mismatch (15%) - Member ports inconsistent
+      4. Load balancing issues (10%) - Hash algorithm problems
+      5. VLAN configuration mismatch (10%) - Member port VLAN diff
+
+      EXOS Diagnostic Commands:
+      1. show sharing
+         → All LAG groups and status
+      
+      2. show sharing <port>
+         → Specific LAG details
+      
+      3. show lacp lag <lag-id>
+         → LACP negotiation status
+      
+      4. show lacp port <port>
+         → Per-port LACP status
+      
+      5. show ports <port-list> configuration
+         → Member port settings comparison
+
+      EXOS LAG Configuration:
+      1. Enable sharing globally:
+         # enable sharing <master-port> grouping <member-ports> algorithm address-based
+         
+         Example: enable sharing 1:1 grouping 1:1-1:4 algorithm address-based L3_L4
+      
+      2. Enable LACP:
+         # enable sharing 1:1 lacp
+      
+      3. Configure LACP parameters:
+         # configure sharing 1:1 lacp actor admin-key <key>
+         # configure sharing 1:1 lacp partner admin-key <key>
+      
+      4. Set LACP rate (slow/fast):
+         # configure lacp port 1:1-1:4 aadminkey <key>
+      
+      5. Check LACP status:
+         # show lacp lag 1:1
+
+      EXOS LAG Troubleshooting:
+      1. Verify all member ports are up:
+         # show ports 1:1-1:4 information detail
+         → All ports should show "Active"
+      
+      2. Check LACP negotiation:
+         # show lacp lag 1:1
+         → Actor and Partner should match
+         → All ports should be "Collecting Distributing"
+      
+      3. Verify port settings match:
+         # show ports 1:1-1:4 configuration
+         → Speed, duplex, auto-neg must match
+      
+      4. Check load balancing:
+         # show sharing 1:1
+         → Look at "Computed Member" column
+         → Should distribute across ports
+      
+      5. Review hash algorithm:
+         # show sharing 1:1 | include Algorithm
+         → L2: Source/Dest MAC
+         → L3: Source/Dest IP
+         → L3_L4: IP + TCP/UDP ports (best for most)
+
+      EXOS LAG Remediation:
+      - If member port down:
+        → Check physical connectivity
+        → Verify port enabled: enable ports 1:2
+        → Check for port errors
+      
+      - If LACP not forming:
+        → Verify LACP enabled both sides
+        → Check admin keys match
+        → Ensure same LACP mode (active/passive)
+      
+      - If uneven load distribution:
+        → Change algorithm: disable sharing 1:1
+        → enable sharing 1:1 grouping 1:1-1:4 algorithm address-based L3_L4
+      
+      - If port settings mismatch:
+        → Make all ports identical:
+          # configure ports 1:1-1:4 auto on
+          # configure ports 1:1-1:4 speed auto duplex auto
+      
+      - If VLANs inconsistent:
+        → Configure VLANs on master port only
+        → VLANs auto-apply to all members
+
+      EXOS LAG Rebuild Procedure:
+      1. Remove old LAG:
+         # disable sharing 1:1
+      
+      2. Reset member ports:
+         # disable ports 1:1-1:4
+         # enable ports 1:1-1:4
+      
+      3. Create new LAG:
+         # enable sharing 1:1 grouping 1:1-1:4 algorithm address-based L3_L4
+      
+      4. Enable LACP:
+         # enable sharing 1:1 lacp
+      
+      5. Verify formation:
+         # show sharing 1:1
+         # show lacp lag 1:1
+
+      Prevention:
+      - Use identical ports (same model/speed)
+      - Always use LACP (not static LAG)
+      - Choose appropriate hash algorithm
+      - Monitor LAG status via SNMP
+      - Document LAG configurations
+      - Test failover scenarios
+      - Keep firmware consistent on both ends
+
+  - id: EXT-015
+    title: "VOSS Port Mirroring and RSPAN Configuration Issues"
+    event_type: MONITORING_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.86
+    category: troubleshooting
+    content: |
+      Port mirroring (SPAN) and Remote SPAN (RSPAN) configuration and troubleshooting.
+      Used for traffic analysis and IDS/IPS monitoring.
+
+      Common Causes (Extreme VOSS):
+      1. Monitor port oversubscription (40%) - Too much traffic to mirror
+      2. RSPAN VLAN misconfiguration (25%) - VLAN not trunked properly
+      3. Source/destination port conflicts (15%) - Port in use
+      4. CPU impact from mirroring (10%) - Excessive mirroring load
+      5. Filter misconfiguration (10%) - Wrong traffic captured
+
+      VOSS Diagnostic Commands:
+      1. show port-mirroring
+         → All configured mirror sessions
+      
+      2. show port-mirroring <id>
+         → Specific mirror session details
+      
+      3. show interfaces gigabitEthernet <port> stats
+         → Port utilization and errors
+      
+      4. show vlan members <vlan>
+         → RSPAN VLAN membership
+      
+      5. show interface gigabitEthernet utilization
+         → Port bandwidth usage
+
+      VOSS Port Mirroring Configuration:
+      1. Create mirror session (local SPAN):
+         (config)# port-mirroring <1-64>
+         (config-mirror)# mode port
+         (config-mirror)# source interface gigabitEthernet <port>
+         (config-mirror)# monitor interface gigabitEthernet <port>
+         (config-mirror)# enable
+         
+         Example:
+         (config)# port-mirroring 1
+         (config-mirror)# mode port
+         (config-mirror)# source interface gigabitEthernet 1/10
+         (config-mirror)# monitor interface gigabitEthernet 1/20
+         (config-mirror)# enable
+      
+      2. Mirror multiple source ports:
+         (config-mirror)# source interface gigabitEthernet 1/10-1/15
+      
+      3. Mirror with filters (ACL-based):
+         (config-mirror)# filter-list <acl-id>
+      
+      4. Configure RSPAN source:
+         (config)# port-mirroring 2
+         (config-mirror)# mode remote-source
+         (config-mirror)# source interface gigabitEthernet 1/10
+         (config-mirror)# remote-vlan <vlan-id>
+         (config-mirror)# enable
+      
+      5. Configure RSPAN destination:
+         (config)# port-mirroring 3
+         (config-mirror)# mode remote-destination
+         (config-mirror)# monitor interface gigabitEthernet 1/20
+         (config-mirror)# remote-vlan <vlan-id>
+         (config-mirror)# enable
+      
+      6. Mirror VLAN traffic:
+         (config)# port-mirroring 4
+         (config-mirror)# mode port
+         (config-mirror)# source vlan <vlan-id>
+         (config-mirror)# monitor interface gigabitEthernet 1/20
+         (config-mirror)# enable
+
+      VOSS Port Mirroring Troubleshooting:
+      1. Check mirror session status:
+         # show port-mirroring
+         → Verify "State: enabled"
+         → Check source and destination ports
+      
+      2. Verify destination port capacity:
+         # show interface gigabitEthernet 1/20 stats
+         → Monitor port should be higher speed than source
+         → Check for drops/errors
+      
+      3. For RSPAN, verify VLAN:
+         # show vlan <vlan-id>
+         → RSPAN VLAN must exist on all intermediate switches
+         → Must be carried on trunk ports
+      
+      4. Check for port conflicts:
+         → Monitor port cannot be used for regular traffic
+         → Source port can be active user port
+      
+      5. Verify CPU utilization:
+         # show sys-info
+         → High CPU may indicate too much mirroring
+
+      VOSS Remediation Steps:
+      - If monitor port oversubscribed:
+        → Use higher speed monitor port (10G for 1G sources)
+        → Mirror fewer source ports
+        → Use filters to reduce traffic
+      
+      - If RSPAN not working:
+        → Verify RSPAN VLAN on all switches
+        → Check trunk ports carry RSPAN VLAN
+        → Ensure VLAN not pruned
+      
+      - If no traffic seen:
+        → Verify mirror session enabled
+        → Check source port has traffic
+        → Verify monitor device capturing
+      
+      - If partial traffic only:
+        → Check filters/ACLs
+        → Verify bi-directional mirroring if needed
+      
+      - If CPU high:
+        → Reduce number of mirror sessions
+        → Use hardware-based mirroring only
+        → Consider external TAP device
+
+      VOSS Mirror Session Management:
+      1. Disable mirror session:
+         (config)# port-mirroring 1
+         (config-mirror)# no enable
+      
+      2. Delete mirror session:
+         (config)# no port-mirroring 1
+      
+      3. Modify existing session:
+         (config)# port-mirroring 1
+         (config-mirror)# no source interface gigabitEthernet 1/10
+         (config-mirror)# source interface gigabitEthernet 1/11
+      
+      4. View statistics:
+         # show port-mirroring 1 stats
+
+      Prevention:
+      - Size monitor ports appropriately (oversubscribe)
+      - Use filters to reduce mirrored traffic
+      - Document mirror sessions
+      - Limit number of active sessions
+      - Use RSPAN for remote monitoring
+      - Consider external network TAPs for critical monitoring
+      - Monitor CPU impact of mirroring
+
+  - id: EXT-016
+    title: "EXOS Stack Member Failure and Recovery"
+    event_type: DEVICE_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      EXOS switch stack member failures, stack port issues, and recovery procedures.
+      Common with stacked X-series switches.
+
+      Common Causes (Extreme EXOS):
+      1. Stack cable failure (35%) - Bad cable or connector
+      2. Member switch failure (25%) - Hardware fault
+      3. Stack loop misconfiguration (15%) - Incorrect topology
+      4. Firmware mismatch (10%) - Different versions
+      5. Power issues (15%) - Inadequate power for stack
+
+      EXOS Diagnostic Commands:
+      1. show stacking
+         → Stack topology and status
+      
+      2. show stacking configuration
+         → Stack configuration details
+      
+      3. show stacking detail
+         → Detailed member information
+      
+      4. show switch
+         → System information for each member
+      
+      5. show log messages | include stack
+         → Stack-related log entries
+
+      EXOS Stack Configuration:
+      1. Enable stacking:
+         # enable stacking
+      
+      2. Assign node-address (slot ID):
+         # configure stacking node-address <slot-id> slot <current-slot>
+         
+         Example: configure stacking node-address 2 slot 1
+      
+      3. Configure stack ports:
+         # configure stacking  port 1:49 master
+         # configure stacking port 1:50 backup
+      
+      4. Set master capability:
+         # configure stacking master-capability on slot 1
+      
+      5. Reboot to apply:
+         # reboot
+
+      EXOS Stack Troubleshooting:
+      1. Check stack status:
+         # show stacking
+         → Look for "Active" state
+         → Verify all members present
+      
+      2. Identify missing member:
+         # show stacking detail
+         → Check "State" column for each slot
+         → "Not Present" indicates missing member
+      
+      3. Verify stack cables:
+         → Check physical connections
+         → Use known good stack cables
+         → Ensure proper ring topology
+      
+      4. Check firmware versions:
+         # show switch
+         → All members should run same version
+         → Use "download image" to sync
+      
+      5. Monitor stack bandwidth:
+         # show port 1:49,1:50 stats
+         → Check for errors or congestion
+
+      EXOS Stack Recovery Procedures:
+      1. If member goes offline:
+         → Check power to failed member
+         → Verify stack cable connections
+         → Check console for error messages
+      
+      2. Replace failed stack cable:
+         # show stacking detail
+         → Note which stack port is failing
+         → Disable port: disable port 1:49
+         → Replace cable
+         → Enable port: enable port 1:49
+      
+      3. Add new member to stack:
+         → Power off new switch
+         → Configure node-address via console
+         → Connect stack cables
+         → Power on (will auto-join stack)
+      
+      4. Replace failed member:
+         → Remove failed switch from stack
+         → Configure new switch with same slot ID
+         → Ensure same firmware version
+         → Connect to stack
+         → Configuration auto-syncs from master
+      
+      5. Recover from split stack:
+         → Power down all members except master
+         → Power up one member at a time
+         → Verify each joins before adding next
+
+      EXOS Stack Master Election:
+      - Master priority order:
+        1. Current master (if present)
+        2. Highest master-capability weight
+        3. Highest priority setting
+        4. Longest uptime
+        5. Lowest MAC address
+      
+      - Force master role:
+        # configure stacking master-capability on weight 255
+
+      EXOS Stack Best Practices:
+      1. Always use Extreme stack cables
+      2. Create redundant ring topology
+      3. Keep firmware synchronized
+      4. Document stack topology
+      5. Label stack cables clearly
+      6. Monitor stack bandwidth
+      7. Test master failover periodically
+
+      Prevention:
+      - Use quality stack cables
+      - Maintain firmware consistency
+      - Redundant power supplies
+      - Monitor stack health via SNMP
+      - Regular stack cable inspection
+      - Document slot assignments
+      - Test failover procedures in maintenance window
+
+  - id: EXT-017
+    title: "VOSS IS-IS Fabric Routing Issues"
+    event_type: ROUTING_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.84
+    category: troubleshooting
+    content: |
+      IS-IS routing protocol issues in VOSS SPB (Shortest Path Bridging) Fabric.
+      Used for Layer 2/3 fabric routing in VSP networks.
+
+      Common Causes (Extreme VOSS):
+      1. IS-IS adjacency not forming (35%) - Layer 2 connectivity issue
+      2. Incorrect system-id configuration (25%) - Duplicate IDs
+      3. Area mismatch (15%) - Different IS-IS areas
+      4. MTU mismatch (10%) - Jumbo frames issue
+      5. Fabric misconfiguration (15%) - SPB parameters wrong
+
+      VOSS Diagnostic Commands:
+      1. show isis
+         → IS-IS global status
+      
+      2. show isis adjacencies
+         → IS-IS neighbor relationships
+      
+      3. show isis interface
+         → IS-IS enabled interfaces
+      
+      4. show isis lsdb
+         → Link state database
+      
+      5. show isis spbm
+         → SPB-specific information
+      
+      6. show log tail 50 | include ISIS
+         → IS-IS error messages
+
+      VOSS IS-IS/SPB Configuration:
+      1. Enable IS-IS globally:
+         (config)# router isis
+         (config-isis)# system-id <mac-address>
+         (config-isis)# is-type l1
+         (config-isis)# spbm <instance-id>
+         (config-isis)# spbm <instance-id> b-vid <vlan-id>
+         
+         Example:
+         (config)# router isis
+         (config-isis)# system-id 00:1a:4b:00:01:01
+         (config-isis)# is-type l1
+         (config-isis)# spbm 1
+         (config-isis)# spbm 1 b-vid 4051
+         (config-isis)# spbm 1 nick-name 1.00.01
+      
+      2. Enable IS-IS on interface:
+         (config)# interface gigabitEthernet 1/10
+         (config-if)# isis
+         (config-if)# isis spbm 1
+         (config-if)# isis enable
+      
+      3. Configure authentication (optional):
+         (config-isis)# area-authentication password <password>
+      
+      4. Set IS-IS metrics:
+         (config-if)# isis metric <1-63>
+
+      VOSS IS-IS Troubleshooting:
+      1. Verify IS-IS enabled:
+         # show isis
+         → Should show "Status: enabled"
+         → Check system-id unique
+      
+      2. Check adjacencies:
+         # show isis adjacencies
+         → Should show "Up" state
+         → Verify interface and level
+      
+      3. Verify Layer 2 connectivity:
+         # show vlan 4051 (B-VLAN)
+         → B-VLAN must exist
+         → Must be on trunk ports between nodes
+      
+      4. Check interface status:
+         # show isis interface
+         → All fabric ports should show "Up"
+         → Verify correct instance
+      
+      5. Review LSDB:
+         # show isis lsdb
+         → Should see all fabric nodes
+         → Check for stale entries
+
+      VOSS IS-IS Remediation:
+      - If adjacency not forming:
+        → Verify Layer 2 connectivity
+        → Check B-VLAN on trunk ports
+        → Ensure IS-IS enabled on interface
+        → Verify IS-IS levels match (L1/L2)
+      
+      - If duplicate system-id:
+        → Each node needs unique system-id
+        → Based on switch MAC address
+        → Format: 00:1a:4b:XX:XX:XX
+      
+      - If area mismatch:
+        → All fabric nodes must be same area
+        → Use "is-type l1" for SPB fabric
+      
+      - If MTU issues:
+        → Enable jumbo frames on all fabric links
+        → Configure: jumbo-frame-size 9216
+      
+      - If SPB not working:
+        → Verify B-VID configured consistently
+        → Check nickname uniqueness
+        → Ensure SPBM instance matches
+
+      VOSS Fabric Verification:
+      1. Check SPB topology:
+         # show isis spbm
+         → Verify all nodes present
+         → Check nicknames unique
+      
+      2. Verify unicast FIB:
+         # show isis spbm unicast-fib
+         → Check reachability to all nodes
+      
+      3. Test connectivity:
+         # ping <remote-node-ip>
+         → Should work over fabric
+      
+      4. Check path selection:
+         # show isis spbm ip-shortcuts
+         → Verify optimal paths
+
+      VOSS Fabric Reset:
+      1. Disable IS-IS on interface:
+         (config-if)# no isis enable
+      
+      2. Re-enable:
+         (config-if)# isis enable
+      
+      3. Clear ISIS adjacencies (drastic):
+         # clear isis adjacency
+      
+      4. Restart ISIS process (if needed):
+         (config)# no router isis
+         (config)# router isis
+
+      Prevention:
+      - Document fabric topology
+      - Use consistent system-id scheme
+      - Maintain B-VLAN across fabric
+      - Monitor IS-IS adjacencies via SNMP
+      - Regular fabric path testing
+      - Keep firmware consistent
+      - Enable IS-IS authentication in production
+
+  - id: EXT-018
+    title: "EXOS PoE Power Budget and Port Power Issues"
+    event_type: POWER_ISSUE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.92
+    category: troubleshooting
+    content: |
+      Power over Ethernet (PoE) budget exhaustion, port power failures, and device issues.
+      Common with PoE+ (802.3at) and PoE++ (802.3bt) deployments.
+
+      Common Causes (Extreme EXOS):
+      1. Power budget exceeded (45%) - Too many high-power devices
+      2. Faulty PoE port (20%) - Hardware failure
+      3. Cable too long (15%) - >100m reduces power
+      4. Device not PoE compatible (10%) - Wrong standard
+      5. Power supply failure (10%) - PSU issue
+
+      EXOS Diagnostic Commands:
+      1. show inline-power info
+         → Global PoE status and budget
+      
+      2. show inline-power info ports <port>
+         → Per-port PoE details
+      
+      3. show inline-power configuration
+         → PoE configuration settings
+      
+      4. show log messages | include inline-power
+         → PoE-related errors
+      
+      5. show switch
+         → Power supply status
+
+      EXOS PoE Status Check:
+      1. Check total power budget:
+         # show inline-power info
+         → Total Power Available: <watts>
+         → Total Power Allocated: <watts>
+         → Total Power Used: <watts>
+         → Remaining: Total - Allocated
+      
+      2. Identify high-power ports:
+         # show inline-power info ports all
+         → Look for "Class 4" (25.5W) or "Class 6" (60W)
+         → Check "Power Draw" vs "Limit"
+      
+      3. Verify port PoE status:
+         # show inline-power info ports 1:10
+         → Admin State: Should be "auto"
+         → Detection Status: Should be "delivering"
+         → Classification: Tells power class
+
+      PoE Standards and Power:
+      - 802.3af (PoE): Up to 15.4W per port
+      - 802.3at (PoE+): Up to 30W per port
+      - 802.3bt Type 3: Up to 60W per port
+      - 802.3bt Type 4 (UPoE): Up to 90W per port
+      
+      EXOS PoE Classes:
+      - Class 0: 0.44-12.95W (default)
+      - Class 1: 0.44-3.84W
+      - Class 2: 3.84-6.49W
+      - Class 3: 6.49-12.95W
+      - Class 4: 12.95-25.50W (PoE+)
+      - Class 5: Reserved
+      - Class 6: 40-51W (PoE++ Type 3)
+      - Class 7: 52-62W (PoE++ Type 3)
+      - Class 8: 62-71W (PoE++ Type 4)
+
+      EXOS PoE Configuration:
+      1. Enable PoE on port:
+         # enable inline-power ports 1:10
+      
+      2. Set power limit:
+         # configure inline-power port 1:10 power-limit 30.0
+         → Limits max power to 30W
+      
+      3. Set priority:
+         # configure inline-power port 1:10 priority low|high|critical
+         → Critical ports get power first
+      
+      4. Set detection mode:
+         # configure inline-power port 1:10 detection ieee-and-legacy
+         → Supports both standards
+      
+      5. Disable PoE on port:
+         # disable inline-power ports 1:10
+
+      EXOS PoE Troubleshooting:
+      1. If device not powering on:
+         → Check: show inline-power info ports 1:10
+         → "Detection Status: searching" = No device detected
+         → "Detection Status: fault" = Short circuit or incompatible device
+      
+      2. If power budget exceeded:
+         → Calculate total required power
+         → Disable lower priority ports
+         → Upgrade to higher wattage switch
+         → Add external PoE injector
+      
+      3. If intermittent power loss:
+         → Check cable length (<100m)
+         → Verify cable quality (Cat5e minimum for PoE+)
+         → Check power draw fluctuations
+      
+      4. If device getting insufficient power:
+         → Verify device PoE class
+         → Increase power limit on port
+         → Check cable resistance
+
+      EXOS PoE Remediation:
+      - If budget exceeded:
+        → Set priorities on critical ports:
+          # configure inline-power port 1:1-1:10 priority critical
+        → Reduce power limit on non-critical ports:
+          # configure inline-power port 1:11-1:20 power-limit 15.4
+      
+      - If port fault:
+        → Reset PoE on port:
+          # disable inline-power ports 1:10
+          # enable inline-power ports 1:10
+        → If persists, hardware RMA needed
+      
+      - If cable too long:
+        → Use repeater/extender
+        → Install intermediate PoE switch
+        → Reduce cable length
+      
+      - If incompatible device:
+        → Use PoE injector/midspan
+        → Check device supports IEEE standard
+        → Try legacy detection mode
+
+      EXOS PoE Power Budget Planning:
+      1. Calculate required power:
+         → Count PoE devices by class
+         → Add 10-20% safety margin
+      
+      2. Example X460-G2-48t-10G:
+         → Total budget: 740W
+         → 48 ports x 30W = 1440W (if all PoE+)
+         → Cannot power all at maximum simultaneously
+      
+      3. Prioritize power:
+         → Critical: VoIP phones, security cameras
+         → High: Wireless APs
+         → Low: Desk phones, sensors
+
+      Prevention:
+      - Document power budget usage
+      - Use PoE+ capable cables (Cat6/6a)
+      - Set appropriate power limits
+      - Configure priority for critical devices
+      - Monitor power usage via SNMP
+      - Plan for 80% capacity max
+      - Keep cable runs under 90m for safety margin
+
+  - id: EXT-019
+    title: "VOSS VLAN Configuration and Trunking Issues"
+    event_type: VLAN_MISMATCH
+    vendor: extreme
+    platform: voss
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      VLAN configuration problems, trunk port issues, and VLAN membership errors on VOSS.
+      Common in multi-VLAN environments.
+
+      Common Causes (Extreme VOSS):
+      1. VLAN not created (30%) - Missing VLAN definition
+      2. Port not member of VLAN (25%) - Membership issue
+      3. Trunk misconfiguration (20%) - VLAN not allowed on trunk
+      4. Native VLAN mismatch (15%) - PVID inconsistent
+      5. VLAN pruning (10%) - VLANs filtered
+
+      VOSS Diagnostic Commands:
+      1. show vlan
+         → All configured VLANs
+      
+      2. show vlan id <vlan-id>
+         → Specific VLAN details
+      
+      3. show vlan members <vlan-id>
+         → Ports in VLAN
+      
+      4. show interfaces gigabitEthernet <port>
+         → Port configuration
+      
+      5. show interfaces gigabitEthernet trunk
+         → Trunk port configuration
+
+      VOSS VLAN Configuration:
+      1. Create VLAN:
+         (config)# vlan create <vlan-id> type port
+         (config)# vlan name <vlan-id> "<name>"
+         
+         Example:
+         (config)# vlan create 100 type port
+         (config)# vlan name 100 "Engineering"
+      
+      2. Assign port to VLAN (access mode):
+         (config)# interface gigabitEthernet 1/10
+         (config-if)# default-vlan-id 100
+         
+         Note: Port automatically becomes member
+      
+      3. Configure trunk port:
+         (config)# interface gigabitEthernet 1/20
+         (config-if)# encapsulation dot1q
+         
+         Or for multiple VLANs:
+         (config)# vlan members add 10,20,30,100 1/20
+      
+      4. Set native VLAN (PVID):
+         (config-if)# default-vlan-id 1
+      
+      5. Configure allowed VLANs on trunk:
+         (config)# vlan members add 100-200 1/20
+
+      VOSS VLAN Troubleshooting:
+      1. Verify VLAN exists:
+         # show vlan id 100
+         → If not found, create it
+      
+      2. Check port membership:
+         # show vlan members 100
+         → Should list expected ports
+      
+      3. Verify trunk configuration:
+         # show interfaces gigabitEthernet 1/20
+         → Look for "Encapsulation: dot1q"
+         → Check "Default VLAN ID" (native VLAN)
+      
+      4. Check VLAN on trunk:
+         # show vlan members 100
+         → Trunk port should appear in list
+      
+      5. Test connectivity:
+         → Ping between devices in same VLAN
+         → Check MAC address table
+
+      VOSS VLAN Remediation:
+      - If VLAN not created:
+        (config)# vlan create 100 type port
+        (config)# vlan name 100 "Description"
+      
+      - If port not in VLAN:
+        (config)# vlan members add 100 1/10
+        Or for access port:
+        (config)# interface gigabitEthernet 1/10
+        (config-if)# default-vlan-id 100
+      
+      - If trunk not carrying VLAN:
+        (config)# interface gigabitEthernet 1/20
+        (config-if)# encapsulation dot1q
+        (config)# vlan members add 100 1/20
+      
+      - If native VLAN mismatch:
+        → Set same PVID on both ends
+        (config-if)# default-vlan-id 1
+      
+      - If VLAN pruning issue:
+        → Check if VLAN pruned on trunk
+        → Add VLAN explicitly: vlan members add 100 1/20
+
+      VOSS VLAN Port Modes:
+      1. Access Port (single VLAN):
+         (config-if)# default-vlan-id 100
+         → Port belongs to one VLAN only
+      
+      2. Trunk Port (multiple VLANs):
+         (config-if)# encapsulation dot1q
+         → Carries multiple VLANs with 802.1Q tags
+      
+      3. Hybrid Mode (access + tagged):
+         (config-if)# default-vlan-id 10
+         (config-if)# encapsulation dot1q
+         (config)# vlan members add 20,30 1/10
+         → Untagged=VLAN 10, Tagged=VLAN 20,30
+
+      VOSS VLAN Verification:
+      1. Show all VLANs with members:
+         # show vlan
+      
+      2. Find which VLAN a port belongs to:
+         # show interfaces gigabitEthernet 1/10 | include VLAN
+      
+      3. Show MAC addresses per VLAN:
+         # show mac-address-table vlan <vlan-id>
+      
+      4. Verify inter-VLAN routing (if configured):
+         # show ip route vrf <vrf-name>
+
+      VOSS VLAN Best Practices:
+      - Use consistent VLAN IDs across network
+      - Document VLAN assignments
+      - Use descriptive VLAN names
+      - Set native VLAN to unused VLAN (not VLAN 1)
+      - Limit VLANs on trunks (only needed VLANs)
+      - Use VLAN 1 for management only
+      - Disable unused VLANs
+      - Monitor VLAN membership changes
+
+      Prevention:
+      - Maintain VLAN documentation
+      - Standardize VLAN IDs across sites
+      - Use automation for VLAN provisioning
+      - Regular VLAN audit
+      - Monitor MAC address tables
+      - Use VLAN naming conventions
+      - Test VLAN changes in maintenance window
+
+  - id: EXT-020
+    title: "EXOS Access Control List (ACL) and Policy Issues"
+    event_type: ACCESS_DENIED
+    vendor: extreme
+    platform: exos
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      Access Control List (ACL) configuration errors, policy misapplication, and traffic filtering issues.
+      EXOS ACL and policy-based QoS troubleshooting.
+
+      Common Causes (Extreme EXOS):
+      1. ACL rule order incorrect (35%) - Implicit deny hit first
+      2. ACL not applied to port (25%) - Missing application
+      3. Syntax errors in ACL (20%) - Incorrect match criteria
+      4. Hardware resource exhaustion (10%) - Too many rules
+      5. Policy conflict (10%) - Multiple policies interfering
+
+      EXOS Diagnostic Commands:
+      1. show access-list
+         → All configured ACLs
+      
+      2. show access-list <acl-name>
+         → Specific ACL details
+      
+      3. show access-list counter
+         → ACL hit counters
+      
+      4. show access-list application
+         → Where ACLs are applied
+      
+      5. show policy
+         → All policies configured
+
+      EXOS ACL Configuration:
+      1. Create ACL entry:
+         # create access-list <name> <rule-content>
+         
+         Example - Permit SSH from management subnet:
+         # create access-list mgmt-access "permit tcp 10.1.1.0/24 any destination-port 22"
+         
+         Example - Deny HTTP from VLAN 100:
+         # create access-list web-deny "deny tcp any any destination-port 80"
+      
+      2. Apply ACL to port:
+         # configure access-list <name> ports <port-list> ingress
+         
+         Example:
+         # configure access-list mgmt-access ports 1:1-1:48 ingress
+      
+      3. Apply ACL to VLAN:
+         # configure access-list <name> vlan <vlan-name> ingress
+      
+      4. View ACL hits:
+         # show access-list counter <acl-name>
+      
+      5. Remove ACL:
+         # delete access-list <name>
+
+      EXOS ACL Syntax:
+      - Permit/Deny: permit | deny
+      - Protocol: tcp | udp | icmp | ip | any
+      - Source: <ip/mask> | any | host <ip>
+      - Destination: <ip/mask> | any | host <ip>
+      - Ports: source-port <port> | destination-port <port>
+      - VLAN: vlan <vlan-id>
+      
+      Examples:
+      # create access-list block-telnet "deny tcp any any destination-port 23"
+      # create access-list allow-dns "permit udp any host 8.8.8.8 destination-port 53"
+      # create access-list block-icmp "deny icmp any any"
+
+      EXOS ACL Troubleshooting:
+      1. Check if ACL exists:
+         # show access-list
+         → Should list configured ACLs
+      
+      2. Verify ACL application:
+         # show access-list application
+         → Check which ports/VLANs have ACL
+      
+      3. Review ACL hit counters:
+         # show access-list counter <name>
+         → If 0 hits, ACL not matching traffic
+         → High hits on deny rules indicate blocked traffic
+      
+      4. Check ACL order:
+         → EXOS processes ACLs in creation order
+         → Use "show access-list <name>" to see sequence
+         → First match wins (like firewall rules)
+      
+      5. Test with temporary permit-all:
+         # create access-list test-permit "permit ip any any"
+         # configure access-list test-permit ports 1:10 ingress
+         → If traffic flows, original ACL was blocking
+
+      EXOS ACL Remediation:
+      - If ACL not blocking traffic:
+        → Check hit counters: show access-list counter
+        → Verify application: show access-list application
+        → Check rule order (permit before deny)
+      
+      - If blocking legitimate traffic:
+        → Add permit rule before deny:
+          # create access-list allow-mgmt "permit ip 10.1.1.0/24 any" before mgmt-deny
+        → Or delete restrictive ACL and recreate
+      
+      - If syntax error:
+        → Check: show access-list <name>
+        → Delete and recreate with correct syntax
+        → Common errors: wrong mask format, invalid port
+      
+      - If resource exhaustion:
+        → Check: show switch | include ACL
+        → Consolidate ACL rules
+        → Use VLAN ACLs instead of port ACLs
+        → Reduce number of ACL entries
+      
+      - If not applied to port:
+        # configure access-list <name> ports <port-list> ingress
+
+      EXOS Policy Configuration (Alternative to ACLs):
+      1. Create policy profile:
+         # create access-list profile <name>
+      
+      2. Add rules to profile:
+         # configure access-list profile <name> rule <rule>
+      
+      3. Apply profile:
+         # configure access-list profile <name> ports <port-list>
+
+      EXOS ACL Best Practices:
+      1. Order rules from specific to general:
+         → Specific permit rules first
+         → General deny rules last
+         → Implicit deny at end (automatic)
+      
+      2. Use descriptive names:
+         → "block-guest-to-mgmt" instead of "acl-1"
+      
+      3. Document ACLs:
+         → Add comments in configuration
+         → Maintain external documentation
+      
+      4. Test before production:
+         → Apply to test port first
+         → Monitor counters
+         → Verify expected behavior
+      
+      5. Monitor ACL hits:
+         → Regular review of counters
+         → Alert on unexpected blocks
+         → Remove unused ACLs
+
+      EXOS ACL Logging:
+      - Enable syslog for ACL hits:
+        # configure access-list <name> log
+        → Logs each hit to syslog server
+      
+      - View ACL logs:
+        # show log messages | include access-list
+
+      Prevention:
+      - Maintain ACL documentation
+      - Use consistent naming convention
+      - Regular ACL audit and cleanup
+      - Test ACL changes in lab first
+      - Monitor ACL hit counters
+      - Limit number of ACLs per device
+      - Use VLAN ACLs where possible (more efficient)
+
+  # ============================================================================
+  # EXTREME NETWORKS - ROUTING PROTOCOLS (EXT-021 to EXT-030)
+  # ============================================================================
+
+  - id: EXT-021
+    title: "VOSS OSPF Neighbor Adjacency Failures"
+    event_type: ROUTING_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      OSPF neighbor relationships not forming or flapping on VOSS switches.
+      Common in Layer 3 routing deployments.
+
+      Common Causes (Extreme VOSS):
+      1. Area mismatch (30%) - Neighbors in different areas
+      2. Network type mismatch (25%) - Broadcast vs point-to-point
+      3. Authentication failure (20%) - Mismatched passwords
+      4. Hello/Dead timer mismatch (15%) - Different intervals
+      5. MTU mismatch (10%) - Jumbo frames not configured
+
+      VOSS Diagnostic Commands:
+      1. show ip ospf neighbor
+         → OSPF neighbor states
+      
+      2. show ip ospf interface
+         → OSPF-enabled interfaces
+      
+      3. show ip ospf
+         → Global OSPF status
+      
+      4. show ip ospf database
+         → OSPF link state database
+      
+      5. show log tail 50 | include OSPF
+         → OSPF error messages
+
+      VOSS OSPF Configuration:
+      1. Enable OSPF globally:
+         (config)# router ospf
+         (config-ospf)# enable
+      
+      2. Configure OSPF on interface:
+         (config)# interface vlan <vlan-id>
+         (config-if)# ip address <ip> <mask>
+         (config-if)# ip ospf area <area-id>
+         (config-if)# ip ospf enable
+         
+         Example:
+         (config)# interface vlan 10
+         (config-if)# ip address 10.1.1.1 255.255.255.0
+         (config-if)# ip ospf area 0.0.0.0
+         (config-if)# ip ospf enable
+      
+      3. Configure OSPF authentication:
+         (config-if)# ip ospf message-digest-key 1 md5 <password>
+         (config-if)# ip ospf authentication message-digest
+      
+      4. Adjust OSPF timers:
+         (config-if)# ip ospf hello-interval <seconds>
+         (config-if)# ip ospf dead-interval <seconds>
+      
+      5. Set OSPF network type:
+         (config-if)# ip ospf network point-to-point
+
+      VOSS OSPF Troubleshooting:
+      1. Check neighbor state:
+         # show ip ospf neighbor
+         → Should show "Full" state for established neighbors
+         → "Init" or "Exstart" indicates problem
+      
+      2. Verify area configuration:
+         # show ip ospf interface
+         → Check "Area ID" matches on both ends
+         → Area 0 = backbone area
+      
+      3. Check authentication:
+         # show ip ospf interface | include Auth
+         → Must match on both neighbors
+         → None, Simple, or MD5
+      
+      4. Verify timers:
+         # show ip ospf interface | include interval
+         → Hello: Default 10 seconds
+         → Dead: Default 40 seconds (4x hello)
+      
+      5. Check MTU:
+         # show interface vlan <id>
+         → Should be 1500 or match jumbo frame size
+
+      VOSS OSPF Remediation:
+      - If area mismatch:
+        (config-if)# ip ospf area 0.0.0.0
+        → Ensure both sides in same area
+      
+      - If authentication mismatch:
+        → Remove auth on one side temporarily:
+        (config-if)# no ip ospf authentication
+        → Or configure matching auth:
+        (config-if)# ip ospf message-digest-key 1 md5 <password>
+        (config-if)# ip ospf authentication message-digest
+      
+      - If timer mismatch:
+        → Standardize timers:
+        (config-if)# ip ospf hello-interval 10
+        (config-if)# ip ospf dead-interval 40
+      
+      - If network type mismatch:
+        → Set to point-to-point for links between routers:
+        (config-if)# ip ospf network point-to-point
+      
+      - If MTU issue:
+        → Enable jumbo frames:
+        (config)# jumbo-frame-size 9216
+
+      VOSS OSPF Verification:
+      1. Check OSPF process:
+         # show ip ospf
+         → Should show "Status: enabled"
+      
+      2. Verify routes learned:
+         # show ip route ospf
+         → Should see routes from neighbors
+      
+      3. Check LSA propagation:
+         # show ip ospf database
+         → Should see LSAs from all routers in area
+      
+      4. Test reachability:
+         # ping <remote-network>
+
+      VOSS OSPF Reset:
+      1. Clear OSPF process:
+         # clear ip ospf process
+      
+      2. Reset specific neighbor:
+         # clear ip ospf neighbor <ip>
+      
+      3. Restart OSPF (drastic):
+         (config)# router ospf
+         (config-ospf)# no enable
+         (config-ospf)# enable
+
+      Prevention:
+      - Document OSPF design (areas, summarization)
+      - Use consistent authentication across network
+      - Standardize timers
+      - Enable OSPF authentication in production
+      - Monitor OSPF neighbor states via SNMP
+      - Regular OSPF database review
+      - Maintain consistent MTU
+
+  - id: EXT-022
+    title: "VOSS VRRP Failover Issues and Master Election"
+    event_type: REDUNDANCY_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      Virtual Router Redundancy Protocol (VRRP) failover problems and master election issues.
+      Critical for gateway redundancy.
+
+      Common Causes (Extreme VOSS):
+      1. Priority misconfiguration (35%) - Wrong priority values
+      2. Tracking interface down (25%) - Tracked port failed
+      3. Preemption disabled (15%) - Backup won't become master
+      4. VRRP advertisement issues (15%) - Network problem
+      5. Split-brain scenario (10%) - Both routers think they're master
+
+      VOSS Diagnostic Commands:
+      1. show ip vrrp
+         → All VRRP instances
+      
+      2. show ip vrrp vrid <id>
+         → Specific VRRP router
+      
+      3. show ip vrrp interface <interface>
+         → VRRP on specific interface
+      
+      4. show ip vrrp statistics
+         → VRRP packet statistics
+      
+      5. show log tail 50 | include VRRP
+         → VRRP state changes
+
+      VOSS VRRP Configuration:
+      1. Enable VRRP globally:
+         (config)# ip vrrp
+      
+      2. Configure VRRP on interface:
+         (config)# interface vlan <vlan-id>
+         (config-if)# ip address <ip> <mask>
+         (config-if)# ip vrrp vrid <1-255>
+         (config-if)# ip vrrp <vrid> address <virtual-ip>
+         (config-if)# ip vrrp <vrid> priority <1-255>
+         (config-if)# ip vrrp <vrid> enable
+         
+         Example:
+         (config)# interface vlan 10
+         (config-if)# ip address 10.1.1.2 255.255.255.0
+         (config-if)# ip vrrp vrid 1
+         (config-if)# ip vrrp 1 address 10.1.1.1
+         (config-if)# ip vrrp 1 priority 110
+         (config-if)# ip vrrp 1 enable
+      
+      3. Enable preemption:
+         (config-if)# ip vrrp 1 preempt enable
+      
+      4. Configure tracking:
+         (config-if)# ip vrrp 1 track-port <port> <priority-change>
+         
+         Example:
+         (config-if)# ip vrrp 1 track-port 1/10 20
+         → If port 1/10 goes down, reduce priority by 20
+      
+      5. Set VRRP timers:
+         (config-if)# ip vrrp 1 advertise-interval <1-255>
+
+      VOSS VRRP Troubleshooting:
+      1. Check VRRP state:
+         # show ip vrrp vrid 1
+         → State: MASTER or BACKUP
+         → Priority: Current priority value
+         → Virtual Router: Virtual IP address
+      
+      2. Identify current master:
+         # show ip vrrp
+         → Look for "State: MASTER"
+         → Should be only one master per VRID
+      
+      3. Check priorities:
+         → Master should have highest priority (100-255)
+         → Default priority: 100
+         → Priority 255: IP address owner (has virtual IP)
+      
+      4. Verify advertisements:
+         # show ip vrrp statistics
+         → Check "Advertisements Received" increasing
+         → Check "Advertisements Sent" on master
+      
+      5. Check tracked interfaces:
+         # show ip vrrp vrid 1 | include Track
+         → Verify tracked ports are up
+
+      VOSS VRRP Remediation:
+      - If wrong router is master:
+        → Check priorities on both routers
+        → Increase priority on desired master:
+        (config-if)# ip vrrp 1 priority 120
+        → Ensure preemption enabled:
+        (config-if)# ip vrrp 1 preempt enable
+      
+      - If failover not occurring:
+        → Check tracked interface:
+        # show interface gigabitEthernet 1/10
+        → Verify tracking configured:
+        (config-if)# ip vrrp 1 track-port 1/10 20
+      
+      - If both routers master (split-brain):
+        → Check Layer 2 connectivity between routers
+        → Verify VLAN carries VRRP advertisements
+        → Check for ACLs blocking multicast 224.0.0.18
+      
+      - If backup never preempts:
+        → Enable preemption on backup:
+        (config-if)# ip vrrp 1 preempt enable
+        → Set higher priority than current master
+      
+      - If advertisements not received:
+        → Verify VRRP enabled: show ip vrrp
+        → Check firewall/ACLs
+        → Verify Layer 2 connectivity
+
+      VOSS VRRP Priority Calculation:
+      - Base priority: Configured value (default 100)
+      - Tracked interface down: -<priority-change>
+      - IP address owner: Always 255 (highest)
+      
+      Example:
+      - Router A: Priority 110, track port up
+      - Router B: Priority 100, track port up
+      → Router A is master
+      
+      - Router A track port goes down: 110 - 20 = 90
+      - Router B: Still 100
+      → Router B becomes master (higher priority)
+
+      VOSS VRRP Verification:
+      1. Test failover:
+         → Disable master's interface:
+         (config-if)# shutdown
+         → Check backup becomes master:
+         # show ip vrrp vrid 1
+      
+      2. Verify virtual IP responding:
+         # ping 10.1.1.1
+         → Should work regardless of master
+      
+      3. Check MAC address:
+         # show ip arp
+         → Virtual IP should map to VRRP virtual MAC
+         → Format: 00:00:5E:00:01:<vrid>
+
+      VOSS VRRP Best Practices:
+      - Use priorities in increments of 10
+      - Master: 110, Backup: 100
+      - Always enable preemption
+      - Track uplink interfaces
+      - Use same VRID across all VLANs (optional)
+      - Monitor VRRP state transitions
+      - Document which router should be master
+
+      Prevention:
+      - Regular failover testing
+      - Monitor VRRP state via SNMP
+      - Alert on unexpected master changes
+      - Track critical uplinks
+      - Keep firmware synchronized
+      - Document VRRP design
+      - Test split-brain scenarios
+
+  - id: EXT-023
+    title: "EXOS Static Route and Default Gateway Issues"
+    event_type: ROUTING_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.93
+    category: troubleshooting
+    content: |
+      Static route configuration problems and default gateway reachability issues on EXOS.
+      Common in networks without dynamic routing protocols.
+
+      Common Causes (Extreme EXOS):
+      1. Next-hop unreachable (40%) - Gateway down or misconfigured
+      2. Route not installed (25%) - Configuration error
+      3. Recursive routing issue (15%) - Next-hop requires another route
+      4. Administrative distance wrong (10%) - Route preference
+      5. Blackhole route (10%) - Traffic dropped
+
+      EXOS Diagnostic Commands:
+      1. show iproute
+         → IP routing table
+      
+      2. show iproute <destination>
+         → Specific route lookup
+      
+      3. show iproute origin
+         → Route sources (static, connected, etc.)
+      
+      4. ping <destination>
+         → Test reachability
+      
+      5. trace <destination>
+         → Trace route path
+
+      EXOS Static Route Configuration:
+      1. Add static route:
+         # configure iproute add <destination> <mask> <next-hop>
+         
+         Example:
+         # configure iproute add 192.168.100.0 255.255.255.0 10.1.1.254
+      
+      2. Add default route:
+         # configure iproute add default <next-hop>
+         
+         Example:
+         # configure iproute add default 10.1.1.254
+      
+      3. Set administrative distance:
+         # configure iproute add <dest> <mask> <nexthop> <distance>
+         
+         Example (floating static route with distance 250):
+         # configure iproute add default 10.1.1.253 250
+      
+      4. Delete static route:
+         # configure iproute delete <destination> <mask> <next-hop>
+      
+      5. Delete default route:
+         # configure iproute delete default
+
+      EXOS Static Route Troubleshooting:
+      1. Verify route in table:
+         # show iproute
+         → Look for destination network
+         → Check next-hop IP
+         → Verify "Active" flag
+      
+      2. Check next-hop reachability:
+         # ping <next-hop>
+         → If fails, next-hop is unreachable
+         → Route won't be installed if next-hop down
+      
+      3. Verify next-hop is directly connected:
+         # show iproute | include <next-hop-subnet>
+         → Next-hop must be on connected subnet
+         → Or recursive lookup to connected network
+      
+      4. Check for route conflicts:
+         # show iproute <destination>
+         → Multiple routes? Check administrative distance
+         → Lower distance wins
+      
+      5. Test end-to-end connectivity:
+         # ping <final-destination>
+         → If fails, check return route too
+
+      EXOS Routing Verification:
+      1. Show all static routes:
+         # show iproute origin static
+      
+      2. Show default gateway:
+         # show iproute | include default
+      
+      3. Check active routes:
+         # show iproute | include /
+      
+      4. Verify forwarding:
+         # show ipconfig
+         → Check "Forwarding: Enabled"
+
+      EXOS Static Route Remediation:
+      - If next-hop unreachable:
+        → Verify next-hop IP correct:
+        # ping <next-hop>
+        → Check VLAN configuration:
+        # show vlan <vlan-name>
+        → Verify next-hop device is up
+      
+      - If route not installed:
+        → Check configuration:
+        # show iproute
+        → Verify next-hop is directly connected
+        → Remove and re-add route:
+        # configure iproute delete <dest> <mask> <nexthop>
+        # configure iproute add <dest> <mask> <nexthop>
+      
+      - If recursive routing issue:
+        → Ensure path to next-hop exists:
+        # show iproute <next-hop>
+        → Add intermediate route if needed
+      
+      - If wrong route chosen:
+        → Check administrative distances:
+        → Static routes: Default distance 1
+        → Connected routes: Distance 0 (always preferred)
+        → Use higher distance for backup routes
+      
+      - If traffic blackholed:
+        → Check for null route:
+        # configure iproute delete <dest> <mask> blackhole
+
+      EXOS Administrative Distance Values:
+      - Connected: 0 (always best)
+      - Static: 1 (default)
+      - OSPF: 110
+      - BGP: 170
+      - Unknown: 255 (never used)
+      
+      Lower value = preferred route
+
+      EXOS Floating Static Route:
+      Use case: Backup route when primary link fails
+      
+      1. Primary route (via OSPF or direct):
+         → Distance 110 or 0
+      
+      2. Backup static route:
+         # configure iproute add default 10.1.1.253 250
+         → Distance 250 (higher than OSPF)
+         → Only used when primary unavailable
+
+      EXOS IP Forwarding:
+      1. Enable IP forwarding (routing):
+         # enable ipforwarding
+      
+      2. Check status:
+         # show ipconfig
+         → Forwarding: Enabled
+      
+      3. Required for traffic to transit switch
+
+      EXOS Route Troubleshooting Procedure:
+      1. Verify route exists:
+         # show iproute <destination>
+      
+      2. Check next-hop reachable:
+         # ping <next-hop>
+      
+      3. Test from source:
+         # ping <destination> from-vlan <source-vlan>
+      
+      4. Trace path:
+         # trace <destination>
+      
+      5. Check return path:
+         → Remote device needs route back!
+
+      Prevention:
+      - Document all static routes
+      - Use descriptive comments in configuration
+      - Maintain routing diagram
+      - Monitor next-hop availability
+      - Use floating static routes for redundancy
+      - Regular route table audits
+      - Test failover scenarios
+
+  - id: EXT-024
+    title: "VOSS Multicast Routing and IGMP Snooping Issues"
+    event_type: MULTICAST_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      Multicast routing problems, IGMP snooping issues, and multicast traffic flooding.
+      Common with video streaming and IPTV deployments.
+
+      Common Causes (Extreme VOSS):
+      1. IGMP snooping disabled (30%) - Multicast floods all ports
+      2. Querier not present (25%) - No IGMP queries sent
+      3. Multicast router port missing (20%) - Upstream not identified
+      4. Fast-leave not configured (15%) - Slow channel changes
+      5. Static multicast groups misconfigured (10%)
+
+      VOSS Diagnostic Commands:
+      1. show ip igmp snooping
+         → IGMP snooping global status
+      
+      2. show ip igmp snooping vlan <vlan-id>
+         → Per-VLAN IGMP snooping
+      
+      3. show ip igmp snooping groups
+         → Learned multicast groups
+      
+      4. show ip igmp snooping mrouter
+         → Multicast router ports
+      
+      5. show ip igmp interface
+         → IGMP configuration per interface
+
+      VOSS IGMP Snooping Configuration:
+      1. Enable IGMP snooping globally:
+         (config)# ip igmp snooping
+      
+      2. Enable per VLAN:
+         (config)# ip igmp snooping vlan <vlan-id>
+      
+      3. Configure querier:
+         (config)# interface vlan <vlan-id>
+         (config-if)# ip igmp snooping querier enable
+         (config-if)# ip igmp snooping querier address <ip>
+      
+      4. Configure fast-leave:
+         (config)# ip igmp snooping vlan <vlan-id> fast-leave enable
+      
+      5. Add static multicast router port:
+         (config)# ip igmp snooping vlan <vlan-id> mrouter port <port>
+
+      VOSS IGMP Troubleshooting:
+      1. Check if snooping enabled:
+         # show ip igmp snooping
+         → Should show "Enabled: true"
+      
+      2. Verify querier active:
+         # show ip igmp snooping vlan <vlan-id>
+         → Should show querier address
+         → Check "Last Querier" timestamp recent
+      
+      3. Check learned groups:
+         # show ip igmp snooping groups
+         → Should see multicast groups
+         → Verify correct ports listed
+      
+      4. Identify multicast router ports:
+         # show ip igmp snooping mrouter
+         → Uplink to multicast source should be listed
+      
+      5. Monitor IGMP packets:
+         # show ip igmp statistics
+         → Check queries/reports sent/received
+
+      VOSS IGMP Snooping Remediation:
+      - If multicast flooding all ports:
+        → Enable IGMP snooping:
+        (config)# ip igmp snooping
+        (config)# ip igmp snooping vlan <vlan-id>
+      
+      - If no querier present:
+        → Configure switch as querier:
+        (config-if)# ip igmp snooping querier enable
+        (config-if)# ip igmp snooping querier address <switch-ip>
+        → Or ensure router sending queries
+      
+      - If multicast router port not detected:
+        → Manually configure:
+        (config)# ip igmp snooping vlan 10 mrouter port 1/20
+        → Should point to upstream multicast source
+      
+      - If slow channel changes:
+        → Enable fast-leave:
+        (config)# ip igmp snooping vlan 10 fast-leave enable
+        → Only use on ports with single receiver
+      
+      - If groups not learned:
+        → Check IGMP version:
+        (config-if)# ip igmp version 2
+        → Verify receivers sending IGMP reports
+
+      VOSS Multicast Forwarding:
+      1. Enable multicast routing (Layer 3):
+         (config)# ip multicast-routing
+         (config)# router pim
+         (config-pim)# enable
+      
+      2. Enable PIM on interfaces:
+         (config)# interface vlan <vlan-id>
+         (config-if)# ip pim
+      
+      3. Verify PIM neighbors:
+         # show ip pim neighbor
+
+      IGMP Versions:
+      - IGMPv1: Basic join/leave (legacy)
+      - IGMPv2: Leave messages (most common)
+      - IGMPv3: Source-specific multicast (SSM)
+      
+      Default: IGMPv2
+
+      VOSS Static Multicast Groups:
+      - Manually add group to port:
+        (config)# ip igmp snooping vlan 10 static-group 239.1.1.1 port 1/15
+      
+      - Use for devices that don't send IGMP joins
+      - Common for STBs, legacy devices
+
+      VOSS IGMP Snooping Verification:
+      1. Test multicast stream:
+         → Start multicast source
+         → Join group from client
+         → Verify traffic only on correct ports
+      
+      2. Check MAC table:
+         # show mac-address-table | include 0100.5e
+         → Multicast MACs start with 01:00:5E
+      
+      3. Monitor group membership:
+         # show ip igmp snooping groups
+
+      Prevention:
+      - Enable IGMP snooping on all VLANs with multicast
+      - Configure querier on each VLAN
+      - Document multicast router ports
+      - Use fast-leave on single-receiver ports
+      - Monitor multicast group counts
+      - Regular IGMP statistics review
+      - Test multicast before production
+
+  - id: EXT-025
+    title: "EXOS Equal-Cost Multi-Path (ECMP) Load Balancing Issues"
+    event_type: LOAD_BALANCING_ISSUE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      ECMP load balancing problems, uneven traffic distribution, and path selection issues.
+      Common in redundant routing scenarios.
+
+      Common Causes (Extreme EXOS):
+      1. Hash algorithm inappropriate (35%) - Poor load distribution
+      2. Limited equal-cost paths (25%) - Not all paths used
+      3. Route metric mismatch (20%) - Paths not equal cost
+      4. Single flow dominates (10%) - Large single connection
+      5. ECMP not enabled (10%) - Only one path used
+
+      EXOS Diagnostic Commands:
+      1. show iproute
+         → Check for multiple next-hops
+      
+      2. show iproute <destination> detail
+         → Show all equal-cost paths
+      
+      3. show ipstats
+         → IP forwarding statistics
+      
+      4. show ports <port-list> utilization
+         → Link utilization on ECMP paths
+      
+      5. show session
+         → Active sessions and hashing
+
+      EXOS ECMP Configuration:
+      1. ECMP is automatically enabled when multiple equal-cost routes exist:
+         # configure iproute add 192.168.100.0 255.255.255.0 10.1.1.1
+         # configure iproute add 192.168.100.0 255.255.255.0 10.1.2.1
+         → Both routes with same metric = ECMP
+      
+      2. Configure maximum ECMP paths:
+         # configure iproute max-ecmp-paths <1-8>
+         
+         Default: 4 paths
+         Maximum: 8 paths (hardware dependent)
+      
+      3. Set load sharing algorithm:
+         # configure iproute sharing <destination> <mask> algorithm <type>
+         
+         Algorithms:
+         - address-based: Uses IP addresses only
+         - round-robin: Sequential distribution (rare)
+         - random: Random path selection (rare)
+      
+      4. Per-flow vs per-packet:
+         → EXOS uses per-flow (hash-based) by default
+         → Maintains packet order within flow
+
+      EXOS ECMP Troubleshooting:
+      1. Verify multiple paths exist:
+         # show iproute 192.168.100.0
+         → Should show multiple "Via" entries
+         → All with same metric
+      
+      2. Check ECMP is active:
+         # show iproute <destination> detail
+         → Should show "ECMP: Yes"
+         → Lists all next-hops
+      
+      3. Monitor link utilization:
+         # show ports 1:49,1:50 utilization
+         → Should be relatively balanced
+         → Exact balance depends on traffic patterns
+      
+      4. Check max ECMP paths:
+         # show iproute configuration | include max-ecmp
+         → Default is 4
+      
+      5. Verify route metrics equal:
+         # show iproute origin
+         → All paths must have same metric
+         → Different metrics = primary/backup, not ECMP
+
+      EXOS ECMP Remediation:
+      - If only one path used:
+        → Verify routes have equal metrics:
+        # show iproute <destination>
+        → Check max-ecmp-paths:
+        # configure iproute max-ecmp-paths 8
+      
+      - If uneven distribution:
+        → Check traffic patterns (per-flow hashing)
+        → Few large flows won't distribute well
+        → Many small flows distribute better
+        → Consider LAG for better distribution
+      
+      - If some paths not used:
+        → Verify all next-hops reachable:
+        # ping <next-hop-1>
+        # ping <next-hop-2>
+        → Check route metrics match:
+        # show iproute | include <destination>
+      
+      - If need more paths:
+        → Increase max-ecmp-paths:
+        # configure iproute max-ecmp-paths 8
+        → Add more equal-cost routes
+      
+      - If wrong path selected:
+        → EXOS uses hash of:
+          • Source IP
+          • Destination IP
+          • Source Port (TCP/UDP)
+          • Destination Port (TCP/UDP)
+          • Protocol
+        → Same 5-tuple = same path (consistent hashing)
+
+      EXOS ECMP Load Sharing:
+      - Per-flow hashing:
+        → Default behavior
+        → Same flow always uses same path
+        → Maintains packet order
+        → Good for most applications
+      
+      - Why uneven distribution occurs:
+        → Few large flows (elephant flows)
+        → One flow can saturate one path
+        → Normal with per-flow hashing
+      
+      - Better distribution scenarios:
+        → Many small flows (mice flows)
+        → Web traffic, DNS queries
+        → Multiple client connections
+
+      EXOS ECMP Verification:
+      1. Create test traffic:
+         → Multiple different source/dest combinations
+         → Check utilization on all paths
+      
+      2. Monitor over time:
+         # show ports 1:49,1:50 statistics no-refresh
+         → Compare TX/RX bytes on each path
+      
+      3. Check session distribution:
+         # show session
+         → Look for sessions on different next-hops
+
+      EXOS ECMP with Dynamic Routing:
+      1. OSPF ECMP:
+         → Multiple paths with same cost
+         → Automatically load balanced
+      
+      2. BGP ECMP:
+         → Requires "multipath" configuration
+         → Check BGP attributes match
+      
+      3. Static routes:
+         → Just add multiple routes to same destination
+         → Same metric = automatic ECMP
+
+      EXOS ECMP Best Practices:
+      - Design for equal-cost paths
+      - Use consistent link speeds
+      - Monitor path utilization
+      - Understand per-flow vs per-packet
+      - Don't expect perfect 50/50 split
+      - Document routing design
+      - Test failover scenarios
+
+      Prevention:
+      - Maintain path symmetry
+      - Monitor link utilization via SNMP
+      - Use LAG when possible (better than ECMP)
+      - Regular load distribution review
+      - Test with realistic traffic patterns
+      - Document ECMP paths
+      - Monitor for path failures
+
+  - id: EXT-026
+    title: "VOSS BGP Route Advertisement and Peering Issues"
+    event_type: BGP_SESSION_DOWN
+    vendor: extreme
+    platform: voss
+    success_rate: 0.86
+    category: troubleshooting
+    content: |
+      BGP peering problems, route advertisement failures, and neighbor issues on VOSS.
+      
+      Common Causes:
+      - TCP port 179 blocked (35%)
+      - AS number mismatch (25%)
+      - Authentication failure (20%)
+      - Incorrect neighbor IP (15%)
+      - Route-map filtering (5%)
+      
+      VOSS Diagnostic Commands:
+      # show ip bgp summary
+      # show ip bgp neighbors <ip>
+      # show ip bgp
+      # show log tail 50 | include BGP
+      
+      Quick Fix - Enable BGP:
+      (config)# router bgp <as-number>
+      (config-bgp)# neighbor <ip> remote-as <remote-as>
+      (config-bgp)# neighbor <ip> enable
+      (config)# router bgp enable
+
+  - id: EXT-027
+    title: "EXOS Route Redistribution Between Protocols"
+    event_type: ROUTING_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.84
+    category: troubleshooting
+    content: |
+      Route redistribution issues between OSPF, BGP, and static routes.
+      
+      Common Causes:
+      - Redistribution not configured (40%)
+      - Route-map blocking routes (30%)
+      - Metric not set (15%)
+      - Route loops (10%)
+      - Wrong protocol direction (5%)
+      
+      EXOS Configuration:
+      # configure ospf routemap redistribute <protocol> <map-name>
+      # configure bgp routemap redistribute <protocol> <map-name>
+      
+      Verification:
+      # show iproute origin
+      # show ospf routes
+      # show bgp routes
+
+  - id: EXT-028
+    title: "VOSS IP Interface and Secondary IP Configuration"
+    event_type: INTERFACE_CONFIG_ERROR
+    vendor: extreme
+    platform: voss
+    success_rate: 0.91
+    category: troubleshooting
+    content: |
+      IP interface configuration errors and secondary IP address issues.
+      
+      Common Causes:
+      - IP subnet overlap (35%)
+      - Secondary IP not configured (30%)
+      - VLAN interface missing (20%)
+      - IP forwarding disabled (10%)
+      - Duplicate IP address (5%)
+      
+      VOSS Configuration:
+      (config)# interface vlan <vlan-id>
+      (config-if)# ip address <primary-ip> <mask>
+      (config-if)# ip address <secondary-ip> <mask> secondary
+      
+      Enable routing:
+      (config)# ip routing
+      
+      Verification:
+      # show ip interface
+      # show ip interface vlan <vlan-id>
+
+  - id: EXT-029
+    title: "EXOS Routing Protocol Priority and Administrative Distance"
+    event_type: ROUTING_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      Route selection issues due to administrative distance and protocol priority.
+      
+      Administrative Distance Values (EXOS):
+      - Connected: 0
+      - Static: 1
+      - OSPF: 110
+      - BGP: 170
+      - Unknown: 255
+      
+      Common Issues:
+      - Static route preferred over dynamic (30%)
+      - Wrong protocol chosen (25%)
+      - Floating static not activating (20%)
+      - Route flapping (15%)
+      - Preference misconfigured (10%)
+      
+      Configure route preference:
+      # configure iproute add <dest> <mask> <nexthop> <distance>
+      
+      Example - Backup route with distance 250:
+      # configure iproute add default 10.1.1.253 250
+
+  - id: EXT-030
+    title: "VOSS IP Multicast Routing and PIM Configuration"
+    event_type: MULTICAST_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.83
+    category: troubleshooting
+    content: |
+      PIM (Protocol Independent Multicast) configuration and multicast routing issues.
+      
+      Common Causes:
+      - PIM not enabled on interfaces (35%)
+      - RP (Rendezvous Point) unreachable (25%)
+      - Multicast routing disabled (20%)
+      - PIM neighbor not forming (15%)
+      - Source registration failure (5%)
+      
+      VOSS PIM Configuration:
+      (config)# ip multicast-routing
+      (config)# router pim
+      (config-pim)# enable
+      (config)# interface vlan <vlan-id>
+      (config-if)# ip pim
+      
+      Set RP (for sparse mode):
+      (config-pim)# rp-address <rp-ip>
+      
+      Verification:
+      # show ip pim neighbor
+      # show ip pim interface
+      # show ip mroute
+
+  # ============================================================================
+  # EXTREME NETWORKS - SWITCHING ISSUES (EXT-031 to EXT-035)
+  # ============================================================================
+
+  - id: EXT-031
+    title: "EXOS Spanning Tree Protocol (STP) Topology Changes"
+    event_type: STP_TOPOLOGY_CHANGE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.88
+    category: troubleshooting
+    content: |
+      STP topology changes causing network instability and MAC address table flushes.
+      
+      Common Causes:
+      - Port flapping (35%)
+      - Incorrect root bridge (25%)
+      - BPDU Guard triggered (20%)
+      - STP timers too aggressive (10%)
+      - Unidirectional link (10%)
+      
+      EXOS STP Commands:
+      # show stpd
+      # show stpd <stpd-name> ports
+      # show log messages | include stp
+      
+      Configure root bridge:
+      # configure stpd s0 priority 4096
+      
+      Enable BPDU protection:
+      # enable bpdu-protection ports <port-list>
+      
+      Adjust timers:
+      # configure stpd s0 hello-time 2
+      # configure stpd s0 forward-delay 15
+      # configure stpd s0 max-age 20
+      
+      Prevention:
+      - Design STP topology carefully
+      - Set root bridge explicitly
+      - Use PortFast on access ports (edge-safeguard)
+      - Monitor topology change frequency
+
+  - id: EXT-032
+    title: "EXOS Ethernet Automatic Protection Switching (EAPS) Ring Failure"
+    event_type: RING_FAILURE
+    vendor: extreme
+    platform: exos
+    success_rate: 0.86
+    category: troubleshooting
+    content: |
+      EAPS ring failures, master node election issues, and sub-second failover problems.
+      Extreme proprietary ring protocol for Layer 2 resilience.
+      
+      Common Causes:
+      - Control VLAN misconfigured (35%)
+      - Master node failure (25%)
+      - Ring not closed (20%)
+      - Port configuration error (15%)
+      - VLAN missing on ring ports (5%)
+      
+      EXOS EAPS Commands:
+      # show eaps
+      # show eaps <ring-name>
+      # show eaps statistics
+      
+      Configure EAPS ring:
+      # create eaps <ring-name>
+      # configure eaps <ring-name> mode master
+      # configure eaps <ring-name> primary port <port>
+      # configure eaps <ring-name> secondary port <port>
+      # configure eaps <ring-name> control-vlan <vlan>
+      # enable eaps <ring-name>
+      
+      Verification:
+      # show eaps <ring-name>
+      → Status should be "Complete"
+      → Check for "Ring ports up"
+
+  - id: EXT-033
+    title: "VOSS MAC Address Table Issues and Flooding"
+    event_type: MAC_FLOODING
+    vendor: extreme
+    platform: voss
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      MAC address table problems, flooding, and aging issues on VOSS.
+      
+      Common Causes:
+      - MAC table full (35%)
+      - Aggressive aging timer (25%)
+      - MAC flapping (20%)
+      - Security violation (15%)
+      - Clear without warning (5%)
+      
+      VOSS MAC Commands:
+      # show mac-address-table
+      # show mac-address-table vlan <vlan-id>
+      # show mac-address-table port <port>
+      # show mac-address-table aging-time
+      
+      Configure aging time:
+      (config)# mac-address-table aging-time <seconds>
+      Default: 300 seconds
+      
+      Clear MAC table:
+      # clear mac-address-table
+      
+      Set MAC limit per port:
+      (config-if)# mac-address-table learning max-entries <count>
+      
+      Prevention:
+      - Monitor MAC table utilization
+      - Use appropriate aging time
+      - Implement port security
+      - Alert on MAC moves
+
+  - id: EXT-034
+    title: "EXOS Port Channel/LAG Configuration Mismatch"
+    event_type: LAG_MISMATCH
+    vendor: extreme
+    platform: exos
+    success_rate: 0.89
+    category: troubleshooting
+    content: |
+      Port channel configuration mismatches between switches causing LAG failures.
+      
+      Common Causes:
+      - LACP mode mismatch (30%)
+      - VLAN configuration different (25%)
+      - Speed/duplex mismatch (20%)
+      - Member port down (15%)
+      - Hash algorithm inconsistent (10%)
+      
+      EXOS LAG Commands:
+      # show sharing
+      # show lacp lag <master-port>
+      # show lacp port <port>
+      
+      Fix LACP mode mismatch:
+      # enable sharing <master> grouping <ports> algorithm address-based L3_L4
+      # enable sharing <master> lacp
+      
+      Verify all members active:
+      # show sharing <master>
+      → All members should be "Collecting Distributing"
+      
+      Match VLANs on LAG:
+      # configure vlan <vlan> add ports <master> tagged
+
+  - id: EXT-035
+    title: "VOSS Unicast Flooding and Unknown Unicast Issues"
+    event_type: FLOODING_ISSUE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.87
+    category: troubleshooting
+    content: |
+      Unknown unicast flooding causing network congestion and performance issues.
+      
+      Common Causes:
+      - Asymmetric routing (35%)
+      - MAC aging too fast (30%)
+      - Port blocked by STP (15%)
+      - MAC not learned (15%)
+      - VLAN misconfiguration (5%)
+      
+      VOSS Commands:
+      # show mac-address-table
+      # show mac-address-table count
+      # show spanning-tree port <port>
+      
+      Adjust MAC aging:
+      (config)# mac-address-table aging-time <300-1000000>
+      
+      Control unknown unicast flooding:
+      (config)# interface gigabitEthernet <port>
+      (config-if)# no flooding
+      
+      Verify MAC learning:
+      # show mac-address-table dynamic
+      # show mac-address-table port <port>
+
+  # ============================================================================
+  # EXTREME NETWORKS - PERFORMANCE ISSUES (EXT-036 to EXT-038)
+  # ============================================================================
+
+  - id: EXT-036
+    title: "EXOS QoS Configuration and Traffic Prioritization Issues"
+    event_type: QOS_MISCONFIGURATION
+    vendor: extreme
+    platform: exos
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      Quality of Service (QoS) misconfigurations causing traffic prioritization problems.
+      
+      Common Causes:
+      - QoS not enabled (35%)
+      - Priority queues misconfigured (30%)
+      - DSCP marking incorrect (20%)
+      - Trust boundary wrong (10%)
+      - Buffer allocation insufficient (5%)
+      
+      EXOS QoS Commands:
+      # show qosprofile
+      # show qosscheduler
+      # show ports <port> qosmonitor
+      # show dot1p
+      
+      Enable QoS:
+      # enable dot1p examination ports <port-list>
+      
+      Configure QoS profile:
+      # create qosprofile <name>
+      # configure qosprofile <name> minbw <percent> maxbw <percent> priority <0-7>
+      
+      Apply to port:
+      # configure ports <port> qosprofile <profile-name>
+      
+      Trust DSCP:
+      # configure diffserv examination ports <port> trust
+      
+      Prevention:
+      - Design QoS policy before implementation
+      - Test with traffic generators
+      - Monitor queue depths
+      - Document QoS configuration
+
+  - id: EXT-037
+    title: "VOSS CPU and Control Plane Policing Issues"
+    event_type: HIGH_CPU
+    vendor: extreme
+    platform: voss
+    success_rate: 0.84
+    category: troubleshooting
+    content: |
+      High CPU utilization and control plane protection issues on VOSS switches.
+      
+      Common Causes:
+      - Excessive broadcast/multicast (35%)
+      - SNMP polling overload (25%)
+      - Routing protocol updates (20%)
+      - Management traffic flood (15%)
+      - ACL processing overhead (5%)
+      
+      VOSS Diagnostic Commands:
+      # show sys-info
+      # show cpu-monitoring
+      # show process cpu
+      # show log tail 100
+      
+      Enable CPU protection:
+      (config)# cpu-protection
+      (config)# cpu-protection rate-limit <pps>
+      
+      Rate limit protocols:
+      (config)# cpu-protection protocol arp rate-limit <pps>
+      (config)# cpu-protection protocol icmp rate-limit <pps>
+      
+      Monitor CPU:
+      # show cpu-monitoring
+      # show cpu-monitoring history
+      
+      Quick fixes:
+      - Reduce SNMP polling frequency
+      - Implement broadcast storm control
+      - Filter unnecessary syslog
+      - Tune routing protocol timers
+
+  - id: EXT-038
+    title: "EXOS Buffer Exhaustion and Memory Issues"
+    event_type: MEMORY_EXHAUSTION
+    vendor: extreme
+    platform: exos
+    success_rate: 0.86
+    category: troubleshooting
+    content: |
+      Buffer exhaustion, memory leaks, and resource allocation problems on EXOS.
+      
+      Common Causes:
+      - Microburst traffic (35%)
+      - Buffer allocation improper (30%)
+      - Memory leak (15%)
+      - Excessive session tracking (10%)
+      - Large routing/MAC tables (10%)
+      
+      EXOS Memory Commands:
+      # show memory
+      # show switch
+      # show buffers
+      # show ports <port> qosmonitor
+      
+      Check buffer usage:
+      # show ports <port> statistics no-refresh
+      → Look for "Overruns" indicating buffer exhaustion
+      
+      Adjust buffer allocation:
+      # configure qosprofile <profile> <min-bw> <max-bw>
+      
+      Enable flow control:
+      # configure ports <port> flow-control rx on tx on
+      
+      Check memory leak:
+      # show memory
+      → Monitor "Free" over time
+      → If decreasing steadily: memory leak (upgrade firmware)
+      
+      Increase buffers for specific queue:
+      # configure qosscheduler <scheduler> weight-type min-bw
+
+  # ============================================================================
+  # EXTREME NETWORKS - SECURITY ISSUES (EXT-039 to EXT-040)
+  # ============================================================================
+
+  - id: EXT-039
+    title: "VOSS 802.1X Dynamic VLAN Assignment and RADIUS Attribute Issues"
+    event_type: AUTH_FAILURE
+    vendor: extreme
+    platform: voss
+    success_rate: 0.85
+    category: troubleshooting
+    content: |
+      802.1X dynamic VLAN assignment failures and RADIUS attribute problems.
+      
+      Common Causes:
+      - RADIUS VLAN attribute incorrect (35%)
+      - Target VLAN doesn't exist (30%)
+      - VLAN not on trunk to client port (20%)
+      - RADIUS server misconfiguration (10%)
+      - Guest VLAN not configured (5%)
+      
+      VOSS Dynamic VLAN Configuration:
+      (config)# eapol enable
+      (config)# interface gigabitEthernet <port>
+      (config-if)# eapol enable
+      (config-if)# eapol multihost enable
+      
+      Configure guest VLAN (unauthenticated users):
+      (config)# eapol guest-vlan <vlan-id>
+      
+      Configure fail-open VLAN (RADIUS unreachable):
+      (config)# eapol fail-open-vlan <vlan-id>
+      
+      RADIUS Attributes Required:
+      - Tunnel-Type (64): VLAN
+      - Tunnel-Medium-Type (65): 802
+      - Tunnel-Private-Group-ID (81): <vlan-id>
+      
+      Verification:
+      # show eapol port <port>
+      # show eapol session <port>
+      # show radius statistics
+      
+      Debug:
+      (config)# debug radius
+      → Watch RADIUS exchanges
+
+  - id: EXT-040
+    title: "EXOS Port Security and MAC Lockdown Configuration"
+    event_type: SECURITY_VIOLATION
+    vendor: extreme
+    platform: exos
+    success_rate: 0.90
+    category: troubleshooting
+    content: |
+      Port security violations, MAC address lockdown, and secure MAC binding issues.
+      
+      Common Causes:
+      - MAC limit exceeded (40%)
+      - Unauthorized device connected (30%)
+      - MAC aging causing re-learn (15%)
+      - Violation action too strict (10%)
+      - Static MAC misconfigured (5%)
+      
+      EXOS Port Security Commands:
+      # show port-security
+      # show port-security port <port>
+      # show mac-security
+      
+      Enable port security:
+      # enable port-security
+      
+      Limit MAC addresses per port:
+      # configure port-security port <port> max-mac-count <1-600>
+      
+      Configure violation action:
+      # configure port-security port <port> violation-action <restrict|shutdown>
+      - restrict: Drop traffic from unauthorized MACs
+      - shutdown: Disable port on violation
+      
+      Lock MAC address to port:
+      # configure mac-security port <port> mac <mac-address> lock
+      
+      Sticky MAC learning:
+      # configure port-security port <port> sticky-mac enable
+      → Learned MACs become permanent
+      
+      Clear violations:
+      # clear port-security violation port <port>
+      # enable port <port>  (if shutdown)
+      
+      Prevention:
+      - Use appropriate MAC limits
+      - Configure guest VLANs
+      - Monitor security violations
+      - Document authorized MAC addresses
+      - Regular security audit

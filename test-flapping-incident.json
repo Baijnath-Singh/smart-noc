@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-05-22T17:00:00Z",
+  "device_id": "core-router-01",
+  "device": "core-router-01",
+  "event_type": "INTERFACE_FLAPPING",
+  "interface": "GigabitEthernet0/1",
+  "message": "Interface GigabitEthernet0/1 flapped - link down",
+  "severity": "high"
+}

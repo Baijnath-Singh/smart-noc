@@ -61,6 +61,7 @@ class ContextBuilder:
             'anomaly_types_distribution': None,
             'device_history': None,
             'similar_incidents': None,
+            'remediation_lessons': None,  # Phase 1: Remediation lessons
             'temporal_pattern': None,
             # Week 2: Vector search results
             'vector_similar_incidents': None,
@@ -87,6 +88,21 @@ class ContextBuilder:
                 primary_device,
                 limit=config.CONTEXT_HISTORICAL_INCIDENTS
             )
+            # Phase 1 & 2: Get remediation lessons (SQL or ChromaDB based on config)
+            if config.REMEDIATION_LESSONS_SOURCE == 'chromadb' and self.vector_kb:
+                # Phase 2: Use ChromaDB semantic search
+                search_query = self._build_vector_search_query(incident)
+                context['remediation_lessons'] = self._get_remediation_lessons_chromadb(
+                    search_query,
+                    incident_type,
+                    limit=config.REMEDIATION_LESSONS_COUNT
+                )
+            else:
+                # Phase 1: Use SQL exact-match query
+                context['remediation_lessons'] = self._get_remediation_lessons(
+                    incident_type,
+                    limit=3
+                )
         
         # Week 2: Vector-based similarity search
         if self.vector_kb:
@@ -340,6 +356,118 @@ class ContextBuilder:
             logger.error(f"Error fetching similar incidents: {e}")
             return "Similar incidents unavailable"
     
+    def _get_remediation_lessons(
+        self, 
+        incident_type: str, 
+        limit: int = 3
+    ) -> str:
+        """Get lessons learned from past successful remediations (Phase 1)"""
+        try:
+            with self.Session() as session:
+                query = text("""
+                    SELECT 
+                        i.incident_number,
+                        i.primary_device,
+                        r.success,
+                        r.actions_taken,
+                        r.resolution_time_seconds,
+                        r.final_phase,
+                        r.lessons_learned,
+                        r.executed_at
+                    FROM remediation_executions r
+                    JOIN incidents i ON r.incident_id = i.id
+                    WHERE i.incident_type = :incident_type
+                      AND r.lessons_learned IS NOT NULL
+                      AND r.lessons_learned != ''
+                    ORDER BY r.executed_at DESC
+                    LIMIT :limit
+                """)
+                
+                result = session.execute(
+                    query, 
+                    {'incident_type': incident_type, 'limit': limit}
+                )
+                
+                lessons = []
+                for row in result:
+                    outcome = "✅ SUCCESS" if row.success else "❌ FAILED"
+                    time_str = f"{row.resolution_time_seconds:.1f}s" if row.resolution_time_seconds else "N/A"
+                    
+                    lessons.append(
+                        f"- Incident #{row.incident_number} ({row.primary_device}): {outcome}\n"
+                        f"  Phase: {row.final_phase}, Actions: {row.actions_taken}, Time: {time_str}\n"
+                        f"  Lesson: {row.lessons_learned}"
+                    )
+                
+                if lessons:
+                    return f"Past remediation results for {incident_type}:\n" + "\n\n".join(lessons)
+                else:
+                    return f"No remediation history available for {incident_type} yet"
+                    
+        except Exception as e:
+            logger.error(f"Error fetching remediation lessons: {e}")
+            return "Remediation history unavailable"
+    
+    def _get_remediation_lessons_chromadb(
+        self, 
+        search_query: str,
+        incident_type: str,
+        limit: int = 5
+    ) -> str:
+        """Get lessons learned via ChromaDB semantic search (Phase 2)"""
+        try:
+            if not self.vector_kb:
+                return "ChromaDB not available, falling back to SQL"
+            
+            # Enhance query with incident type for better semantic matching
+            enhanced_query = f"{incident_type} {search_query}"
+            
+            # Generate query embedding
+            query_embedding = self.vector_kb.model.encode(enhanced_query).tolist()
+            
+            # Search remediation_commands collection
+            results = self.vector_kb.commands.query(
+                query_embeddings=[query_embedding],
+                n_results=limit
+            )
+            
+            lessons = []
+            if results['ids'][0]:
+                for i in range(len(results['ids'][0])):
+                    distance = results['distances'][0][i]
+                    similarity = 1 - distance  # Convert distance to similarity
+                    
+                    # Filter by minimum similarity threshold
+                    if similarity < config.REMEDIATION_LESSONS_MIN_SIMILARITY:
+                        continue
+                    
+                    doc_text = results['documents'][0][i]
+                    metadata = results['metadatas'][0][i]
+                    
+                    # Format lesson with similarity score
+                    lessons.append(
+                        f"- Incident #{metadata.get('incident_number', 'N/A')} "
+                        f"({metadata.get('device', 'unknown')}) "
+                        f"[similarity: {similarity:.2f}]\n"
+                        f"  Type: {metadata.get('incident_type', 'UNKNOWN')}, "
+                        f"Actions: {metadata.get('actions_count', 0)}, "
+                        f"Time: {metadata.get('resolution_time_seconds', 0):.1f}s\n"
+                        f"  {doc_text}"
+                    )
+            
+            if lessons:
+                return (
+                    f"Past remediation results (semantic search, threshold: {config.REMEDIATION_LESSONS_MIN_SIMILARITY}):\\n"
+                    + "\\n\\n".join(lessons)
+                )
+            else:
+                return f"No similar remediation history found (tried semantic search with threshold {config.REMEDIATION_LESSONS_MIN_SIMILARITY})"
+                
+        except Exception as e:
+            logger.error(f"Error in ChromaDB remediation search: {e}")
+            # Fallback to SQL
+            return self._get_remediation_lessons(incident_type, limit=3)
+    
     # ============================================================================
     # Week 2: Vector Search Methods
     # ============================================================================
@@ -422,21 +550,51 @@ class ContextBuilder:
             return None
         
         try:
-            # Determine vendor from device_id
+            # Enhanced vendor and platform detection
             vendor = "generic"
-            if device_id:
-                if "cisco" in device_id.lower() or "cat" in device_id.lower():
-                    vendor = "cisco"
-                elif "juniper" in device_id.lower() or "mx" in device_id.lower() or "ex" in device_id.lower():
-                    vendor = "juniper"
+            platform = None
             
-            # Search for relevant KB articles with smart fallback
+            if device_id:
+                device_lower = device_id.lower()
+                
+                # Extreme Networks detection
+                if any(x in device_lower for x in ["exos", "extreme", "summit", "x460", "x670", "x440"]):
+                    vendor = "extreme"
+                    platform = "exos"
+                elif any(x in device_lower for x in ["voss", "vsp", "fabric"]):
+                    vendor = "extreme"
+                    platform = "voss"
+                
+                # Cisco detection
+                elif any(x in device_lower for x in ["cisco", "cat", "nexus", "catalyst"]):
+                    vendor = "cisco"
+                    if "nexus" in device_lower:
+                        platform = "nxos"
+                    else:
+                        platform = "ios"
+                
+                # Juniper detection
+                elif any(x in device_lower for x in ["juniper", "mx", "ex", "qfx", "srx"]):
+                    vendor = "juniper"
+                    platform = "junos"
+                
+                # HP/Aruba detection
+                elif any(x in device_lower for x in ["aruba", "procurve", "hp"]):
+                    vendor = "hp"
+                    platform = "aruba"
+            
+            logger.info(f"Detected vendor: {vendor}, platform: {platform} from device: {device_id}")
+            
+            # Search for relevant KB articles with enhanced multi-query search
             # Try with filters first, if no results, retry without filters for broader semantic match
             results = self.vector_kb.find_relevant_kb(
                 query_text=query_text,
                 event_type=incident_type if incident_type and incident_type != 'UNKNOWN' else None,
                 vendor=vendor,
-                top_k=config.VECTOR_KB_ARTICLES_COUNT
+                platform=platform,
+                top_k=config.VECTOR_KB_ARTICLES_COUNT,
+                use_multi_query=True,  # Enable enhanced search
+                min_relevance=0.50  # Minimum relevance threshold
             )
             
             # Fallback: If no results with filters, try without filters for semantic matching
@@ -446,18 +604,29 @@ class ContextBuilder:
                     query_text=query_text,
                     event_type=None,
                     vendor=None,
-                    top_k=config.VECTOR_KB_ARTICLES_COUNT
+                    platform=None,
+                    top_k=config.VECTOR_KB_ARTICLES_COUNT,
+                    use_multi_query=True,
+                    min_relevance=0.40  # Lower threshold for fallback
                 )
             
             if not results:
                 return None
             
-            # Format results
-            lines = [f"Knowledge Base Articles (Vector Search - {len(results)} found):\n"]
+            # Format results with enhanced metrics
+            lines = [f"Knowledge Base Articles (Enhanced Multi-Query Search - {len(results)} found):\n"]
             for i, result in enumerate(results, 1):
                 metadata = result.get('metadata', {})
                 relevance = result.get('relevance', 0.0)
-                content = result.get('content', '')
+                matched_queries = result.get('matched_queries', 1)
+                query_types = result.get('query_types', [])
+                content = result.get('text', '')  # Note: 'text' not 'content' from vector_service
+                
+                # Build vendor/platform string
+                vendor_str = metadata.get('vendor', 'generic')
+                platform = metadata.get('platform')
+                if platform:
+                    vendor_str = f"{vendor_str}/{platform}"
                 
                 # Extract key sections from content
                 content_lines = content.split('\n')
@@ -472,7 +641,7 @@ class ContextBuilder:
                         in_root_causes = True
                         in_remediation = False
                         continue
-                    elif 'Remediation' in line or 'Resolution' in line:
+                    elif 'Remediation' in line or 'Resolution' in line or 'Quick Fix' in line:
                         in_root_causes = False
                         in_remediation = True
                         continue
@@ -486,17 +655,24 @@ class ContextBuilder:
                     elif in_remediation and line.strip() and len(remediation) < 3:
                         remediation.append(line.strip())
                 
+                # Format article header with enhanced metrics
                 lines.append(
                     f"{i}. **{metadata.get('title', 'Unknown')}** "
                     f"(Event: {metadata.get('event_type', 'N/A')}, "
-                    f"Vendor: {metadata.get('vendor', 'generic')}, "
-                    f"Success: {metadata.get('success_rate', 'N/A')}%)\n"
-                    f"   Relevance: {relevance:.3f}\n"
+                    f"Vendor: {vendor_str}, "
+                    f"Success: {metadata.get('success_rate', 'N/A')})\n"
+                    f"   Relevance: {relevance:.3f} "
                 )
                 
-                # Log which KB article was retrieved
+                # Add multi-query metrics if available
+                if matched_queries > 1:
+                    lines[-1] += f"(matched {matched_queries} queries)"
+                lines[-1] += "\n"
+                
+                # Log which KB article was retrieved with enhanced info
                 kb_id = result.get('article_id', 'unknown')
-                logger.info(f"  → KB Article {i}: {kb_id} - {metadata.get('title', 'Unknown')} (relevance: {relevance:.3f})")
+                logger.info(f"  → KB Article {i}: {kb_id} - {metadata.get('title', 'Unknown')} "
+                           f"(relevance: {relevance:.3f}, queries: {matched_queries})")
                 
                 if root_causes:
                     lines.append(f"   Common Root Causes:")
@@ -510,7 +686,7 @@ class ContextBuilder:
                 
                 lines.append("")
             
-            logger.info(f"Found {len(results)} relevant KB articles via vector search")
+            logger.info(f"Found {len(results)} relevant KB articles via enhanced multi-query vector search")
             return "\n".join(lines)
             
         except Exception as e:

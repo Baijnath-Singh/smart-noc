@@ -11,6 +11,12 @@ psycopg2-binary==2.9.9
 pydantic==2.9.2
 pydantic-settings==2.5.2
 
+# Phase 2: Vector Service dependencies
+chromadb==0.5.0
+sentence-transformers==2.3.1
+huggingface-hub==0.36.2
+numpy<2.0
+
 # Utilities
 loguru==0.7.2
 python-dotenv==1.0.0

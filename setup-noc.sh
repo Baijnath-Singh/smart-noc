@@ -353,7 +353,7 @@ sleep 15
 
 # Check container status
 info "Checking container status..."
-EXPECTED_SERVICES=("kafka" "postgres" "chromadb" "vector-service" "anomaly-detector" "correlation-engine" "llm-diagnosis")
+EXPECTED_SERVICES=("kafka" "postgres" "redis" "elasticsearch" "chromadb" "grafana" "kafka-ui" "logstash" "vector-service" "anomaly-detector" "correlation-engine" "llm-diagnosis" "remediation-agent")
 RUNNING_COUNT=0
 
 for service in "${EXPECTED_SERVICES[@]}"; do
@@ -370,7 +370,7 @@ if [ $RUNNING_COUNT -eq ${#EXPECTED_SERVICES[@]} ]; then
 else
     warning "Some services failed to start ($RUNNING_COUNT/${#EXPECTED_SERVICES[@]})"
     info "Attempting to restart failed services..."
-    docker compose up -d chromadb vector-service anomaly-detector correlation-engine llm-diagnosis
+    docker compose up -d redis elasticsearch chromadb grafana kafka-ui logstash vector-service anomaly-detector correlation-engine llm-diagnosis remediation-agent
     sleep 10
     info "Rechecking services..."
     RUNNING_COUNT=0
@@ -471,7 +471,7 @@ fi
 
 # Services Running
 RUNNING_COUNT=$(docker compose ps --filter status=running --format "{{.Name}}" | wc -l)
-TOTAL_SERVICES=12
+TOTAL_SERVICES=13
 echo "🚀 Services Running: $RUNNING_COUNT/$TOTAL_SERVICES"
 docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" | grep "(healthy)" | sed 's/^/   ✓ /'
 echo ""
@@ -484,7 +484,7 @@ if [ "$TABLE_COUNT" -lt 4 ]; then
     warning "Expected 4+ PostgreSQL tables, found $TABLE_COUNT"
 fi
 
-if [ "$RUNNING_COUNT" -lt 10 ]; then
+if [ "$RUNNING_COUNT" -lt 12 ]; then
     warning "Some services may not be running properly ($RUNNING_COUNT/$TOTAL_SERVICES)"
 fi
 

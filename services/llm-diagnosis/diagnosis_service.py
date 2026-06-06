@@ -306,6 +306,7 @@ class DiagnosisService:
             anomaly_types=context.get('anomaly_types_distribution', 'N/A'),
             device_history=context.get('device_history', 'No history'),
             historical_incidents=context.get('similar_incidents', 'No similar incidents'),
+            remediation_lessons=context.get('remediation_lessons', 'No remediation history yet'),  # Phase 1
             temporal_pattern=context.get('temporal_pattern', 'N/A'),
             # Week 2: Vector search results from semantic similarity
             vector_similar_incidents=context.get('vector_similar_incidents', ''),

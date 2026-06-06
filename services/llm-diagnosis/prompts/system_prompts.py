@@ -100,6 +100,8 @@ DEVICE_FAILURE_PROMPT_TEMPLATE = """Analyze this DEVICE_FAILURE incident:
 **Similar Past Incidents:**
 {historical_incidents}
 
+{remediation_lessons}
+
 {vector_similar_incidents}
 
 {vector_kb_articles}
@@ -108,7 +110,8 @@ Focus on identifying why multiple different anomaly types are occurring on the s
 - Hardware failures (NIC, memory, power supply)
 - Software bugs or resource exhaustion
 - Configuration issues
-- Environmental factors (temperature, power)"""
+- Environmental factors (temperature, power)
+- Learn from past remediation successes and failures"""
 
 
 NETWORK_PERFORMANCE_PROMPT_TEMPLATE = """Analyze this NETWORK_PERFORMANCE incident:
@@ -131,6 +134,8 @@ NETWORK_PERFORMANCE_PROMPT_TEMPLATE = """Analyze this NETWORK_PERFORMANCE incide
 **Recent Changes:**
 {recent_configuration_changes}
 
+{remediation_lessons}
+
 {vector_similar_incidents}
 
 {vector_kb_articles}
@@ -140,7 +145,8 @@ Focus on network-wide performance degradation. Consider:
 - Routing loops or suboptimal paths
 - QoS policy issues
 - Broadcast/multicast storms
-- DDoS or traffic anomalies"""
+- DDoS or traffic anomalies
+- Apply lessons from past successful remediations"""
 
 
 SECURITY_BREACH_PROMPT_TEMPLATE = """Analyze this SECURITY_BREACH incident:

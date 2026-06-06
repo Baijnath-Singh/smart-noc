@@ -266,17 +266,24 @@ class VectorKnowledgeBase:
             # Generate embedding
             embedding = self.model.encode(text).tolist()
             
+            # Build metadata dict with all available fields
+            article_metadata = {
+                "title": title,
+                "event_type": metadata.get('event_type', 'GENERAL'),
+                "vendor": metadata.get('vendor', 'generic'),
+                "success_rate": metadata.get('success_rate', 0.0),
+                "category": metadata.get('category', 'troubleshooting')
+            }
+            
+            # Add platform if present (for vendor-specific articles)
+            if 'platform' in metadata:
+                article_metadata['platform'] = metadata['platform']
+            
             # Store
             self.kb_articles.add(
                 ids=[article_id],
                 embeddings=[embedding],
-                metadatas=[{
-                    "title": title,
-                    "event_type": metadata.get('event_type', 'GENERAL'),
-                    "vendor": metadata.get('vendor', 'generic'),
-                    "success_rate": metadata.get('success_rate', 0.0),
-                    "category": metadata.get('category', 'troubleshooting')
-                }],
+                metadatas=[article_metadata],
                 documents=[text]
             )
             
@@ -292,59 +299,289 @@ class VectorKnowledgeBase:
         query_text: str,
         top_k: int = 3,
         event_type: Optional[str] = None,
-        vendor: Optional[str] = None
+        vendor: Optional[str] = None,
+        platform: Optional[str] = None,
+        use_multi_query: bool = True,
+        min_relevance: float = 0.50
     ) -> List[Dict]:
         """
-        Find relevant knowledge base articles
+        Find relevant knowledge base articles with enhanced multi-query search
         
         Args:
             query_text: Incident or question description
             top_k: Number of results
             event_type: Filter by event type
             vendor: Filter by vendor
+            platform: Filter by platform (e.g., exos, voss)
+            use_multi_query: Use multi-query weighted ranking (recommended)
+            min_relevance: Minimum relevance threshold (0.0-1.0)
         
         Returns:
-            List of relevant KB articles
+            List of relevant KB articles with weighted relevance scores
         """
+        try:
+            if use_multi_query:
+                # Use enhanced multi-query search
+                return self._multi_query_search(
+                    query_text=query_text,
+                    top_k=top_k,
+                    event_type=event_type,
+                    vendor=vendor,
+                    platform=platform,
+                    min_relevance=min_relevance
+                )
+            else:
+                # Use simple single-query search (legacy)
+                return self._single_query_search(
+                    query_text=query_text,
+                    top_k=top_k,
+                    event_type=event_type,
+                    vendor=vendor,
+                    platform=platform,
+                    min_relevance=min_relevance
+                )
+        except Exception as e:
+            logger.error(f"Error in find_relevant_kb: {e}")
+            return []
+    
+    def _single_query_search(
+        self,
+        query_text: str,
+        top_k: int,
+        event_type: Optional[str],
+        vendor: Optional[str],
+        platform: Optional[str],
+        min_relevance: float
+    ) -> List[Dict]:
+        """Simple single-query search (legacy method)"""
         try:
             query_embedding = self.model.encode(query_text).tolist()
             
-            # Build filter (ChromaDB requires $and for multiple conditions)
-            where_filter = None
-            if event_type and vendor:
-                where_filter = {
-                    "$and": [
-                        {"event_type": event_type},
-                        {"vendor": vendor}
-                    ]
-                }
-            elif event_type:
-                where_filter = {"event_type": event_type}
-            elif vendor:
-                where_filter = {"vendor": vendor}
+            # Build filter
+            where_filter = self._build_filter(event_type, vendor, platform)
             
             results = self.kb_articles.query(
                 query_embeddings=[query_embedding],
-                n_results=top_k,
+                n_results=top_k * 2,  # Get more results for filtering
                 where=where_filter
             )
             
             articles = []
             if results['ids'][0]:
                 for i in range(len(results['ids'][0])):
-                    articles.append({
-                        "article_id": results['ids'][0][i],
-                        "text": results['documents'][0][i],
-                        "metadata": results['metadatas'][0][i],
-                        "relevance": round(1 - results['distances'][0][i], 3)
-                    })
+                    relevance = round(1 - results['distances'][0][i], 3)
+                    
+                    # Apply minimum relevance threshold
+                    if relevance >= min_relevance:
+                        articles.append({
+                            "article_id": results['ids'][0][i],
+                            "text": results['documents'][0][i],
+                            "metadata": results['metadatas'][0][i],
+                            "relevance": relevance
+                        })
             
-            logger.info(f"Found {len(articles)} relevant KB articles")
+            # Sort by relevance and limit to top_k
+            articles = sorted(articles, key=lambda x: x['relevance'], reverse=True)[:top_k]
+            
+            logger.info(f"Found {len(articles)} relevant KB articles (single-query)")
             return articles
             
         except Exception as e:
-            logger.error(f"Error finding KB articles: {e}")
+            logger.error(f"Error in single-query search: {e}")
             return []
+    
+    def _multi_query_search(
+        self,
+        query_text: str,
+        top_k: int,
+        event_type: Optional[str],
+        vendor: Optional[str],
+        platform: Optional[str],
+        min_relevance: float
+    ) -> List[Dict]:
+        """
+        Enhanced multi-query search with weighted ranking
+        
+        Strategy:
+        1. Generate multiple query variations
+        2. Search with each query
+        3. Weight results based on query type
+        4. Deduplicate and re-rank
+        5. Return top-k results
+        """
+        try:
+            # Generate multiple query variations
+            queries = self._generate_query_variations(
+                query_text=query_text,
+                event_type=event_type,
+                vendor=vendor,
+                platform=platform
+            )
+            
+            # Build filter once (used for all queries)
+            where_filter = self._build_filter(event_type, vendor, platform)
+            
+            # Search with each query and collect results
+            all_results = {}  # article_id -> {result_data, scores[]}
+            
+            for query_info in queries:
+                query = query_info['query']
+                weight = query_info['weight']
+                query_type = query_info['type']
+                
+                # Generate embedding for this query
+                query_embedding = self.model.encode(query).tolist()
+                
+                # Search
+                results = self.kb_articles.query(
+                    query_embeddings=[query_embedding],
+                    n_results=top_k * 3,  # Get more results for better ranking
+                    where=where_filter
+                )
+                
+                # Process results
+                if results['ids'][0]:
+                    for i in range(len(results['ids'][0])):
+                        article_id = results['ids'][0][i]
+                        base_relevance = 1 - results['distances'][0][i]
+                        weighted_score = base_relevance * weight
+                        
+                        if article_id not in all_results:
+                            all_results[article_id] = {
+                                "article_id": article_id,
+                                "text": results['documents'][0][i],
+                                "metadata": results['metadatas'][0][i],
+                                "scores": [],
+                                "query_types": []
+                            }
+                        
+                        # Accumulate scores from different queries
+                        all_results[article_id]["scores"].append(weighted_score)
+                        all_results[article_id]["query_types"].append(query_type)
+            
+            # Calculate final relevance scores
+            articles = []
+            for article_id, data in all_results.items():
+                # Use max score (best match from any query) + bonus for matching multiple queries
+                max_score = max(data["scores"])
+                query_count_bonus = len(data["scores"]) * 0.05  # +5% per additional query match
+                final_relevance = min(max_score + query_count_bonus, 1.0)
+                
+                # Apply minimum relevance threshold
+                if final_relevance >= min_relevance:
+                    articles.append({
+                        "article_id": data["article_id"],
+                        "text": data["text"],
+                        "metadata": data["metadata"],
+                        "relevance": round(final_relevance, 3),
+                        "matched_queries": len(data["scores"]),
+                        "query_types": list(set(data["query_types"]))  # Unique query types
+                    })
+            
+            # Sort by relevance and limit to top_k
+            articles = sorted(articles, key=lambda x: x['relevance'], reverse=True)[:top_k]
+            
+            logger.info(f"Found {len(articles)} relevant KB articles (multi-query, avg {sum(a['matched_queries'] for a in articles) / len(articles):.1f} queries per article)" if articles else "Found 0 relevant KB articles")
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Error in multi-query search: {e}")
+            return []
+    
+    def _generate_query_variations(
+        self,
+        query_text: str,
+        event_type: Optional[str],
+        vendor: Optional[str],
+        platform: Optional[str]
+    ) -> List[Dict]:
+        """
+        Generate multiple query variations with weights
+        
+        Returns:
+            List of {query, weight, type} dicts
+        """
+        queries = []
+        
+        # Query 1: Original query (highest weight)
+        queries.append({
+            "query": query_text,
+            "weight": 1.0,
+            "type": "original"
+        })
+        
+        # Query 2: Event-type focused (if available)
+        if event_type and event_type != 'UNKNOWN':
+            event_query = f"{event_type.replace('_', ' ')} {query_text}"
+            queries.append({
+                "query": event_query,
+                "weight": 0.9,
+                "type": "event_focused"
+            })
+        
+        # Query 3: Vendor + Platform focused (if available)
+        if vendor and vendor != 'unknown' and vendor != 'generic':
+            vendor_query = f"{vendor} {platform if platform else ''} {query_text}".strip()
+            queries.append({
+                "query": vendor_query,
+                "weight": 0.85,
+                "type": "vendor_focused"
+            })
+        
+        # Query 4: Troubleshooting-focused
+        troubleshoot_query = f"troubleshooting {query_text}"
+        queries.append({
+            "query": troubleshoot_query,
+            "weight": 0.75,
+            "type": "troubleshooting"
+        })
+        
+        # Query 5: Root cause focused
+        root_cause_query = f"root cause {query_text}"
+        queries.append({
+            "query": root_cause_query,
+            "weight": 0.70,
+            "type": "root_cause"
+        })
+        
+        return queries
+    
+    def _build_filter(
+        self,
+        event_type: Optional[str],
+        vendor: Optional[str],
+        platform: Optional[str]
+    ) -> Optional[Dict]:
+        """Build ChromaDB filter from criteria"""
+        conditions = []
+        
+        if event_type and event_type != 'UNKNOWN':
+            conditions.append({"event_type": event_type})
+        
+        if vendor and vendor not in ['unknown', 'generic']:
+            # Match specific vendor OR generic articles
+            conditions.append({
+                "$or": [
+                    {"vendor": vendor},
+                    {"vendor": "generic"}
+                ]
+            })
+        
+        if platform:
+            # Match specific platform OR generic
+            conditions.append({
+                "$or": [
+                    {"platform": platform},
+                    {"vendor": "generic"}  # Generic articles don't have platform
+                ]
+            })
+        
+        if len(conditions) == 0:
+            return None
+        elif len(conditions) == 1:
+            return conditions[0]
+        else:
+            return {"$and": conditions}
     
     # =========================================================================
     # REMEDIATION COMMANDS
