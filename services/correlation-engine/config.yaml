@@ -46,7 +46,7 @@ correlation:
       min_count: 2  # Now will detect our AUTH_BRUTE_FORCE anomalies!
 
     CONNECTIVITY_ISSUE:
-      anomaly_types: [ "INTERFACE_DOWN", "BGP_DOWN", "LINK_DOWN", "INTERFACE_FLAPPING", "BGP_INSTABILITY" ]
+      anomaly_types: [ "INTERFACE_DOWN", "BGP_DOWN", "LINK_DOWN", "INTERFACE_FLAPPING", "BGP_INSTABILITY", "VLAN_MISMATCH", "MAC_LEARNING_ISSUE", "STP_INCONSISTENCY", "CONNECTIVITY_FAILURE", "TRAFFIC_DROP", "CONFIG_MISMATCH" ]
       min_devices: 1  # Changed from 2 to 1 - interface flapping on one device IS a connectivity issue!
 
     DEVICE_FAILURE:

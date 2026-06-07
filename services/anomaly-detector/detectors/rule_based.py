@@ -280,6 +280,35 @@ class RuleBasedDetector:
         
         return None
     
+    def detect_vlan_mismatch(self, log: Dict) -> Optional[Dict]:
+        """
+        Detect VLAN mismatches and trunk configuration issues
+        
+        Pattern: VLAN_MISMATCH, CDP/LLDP warnings, trunk inconsistencies
+        """
+        event_type = log.get('event_type')
+        
+        # Detect VLAN-related issues
+        if event_type not in ['VLAN_MISMATCH', 'CDP_NATIVE_VLAN_MISMATCH', 'TRUNK_MISMATCH']:
+            return None
+        
+        device_id = log.get('device_id')
+        if not device_id:
+            return None
+        
+        logger.warning(f"VLAN mismatch detected: {device_id} - {log.get('message', 'No message')[:100]}")
+        
+        return {
+            'anomaly_type': event_type,
+            'device_id': device_id,
+            'severity': 'MEDIUM',
+            'event_type': event_type,
+            'confidence': 1.0,
+            'detection_method': 'RULE_BASED',
+            'message': f"VLAN configuration mismatch detected on {device_id}",
+            'details': log.get('message', '')
+        }
+    
     def detect(self, log: Dict) -> List[Dict]:
         """
         Run all rule-based detectors on a log entry
@@ -297,7 +326,8 @@ class RuleBasedDetector:
             self.detect_interface_flapping,
             self.detect_auth_brute_force,
             self.detect_high_cpu,
-            self.detect_bgp_instability
+            self.detect_bgp_instability,
+            self.detect_vlan_mismatch
         ]
         
         for detector in detectors:

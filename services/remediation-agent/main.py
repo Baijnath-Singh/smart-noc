@@ -147,9 +147,45 @@ class RemediationService:
         
         return True
     
+    def _get_incident_id(self, incident_number: int) -> str:
+        """Get the incident UUID from the database using incident_number"""
+        if not self.db_conn:
+            logger.error("No database connection to look up incident ID")
+            return None
+        
+        try:
+            # Ensure incident_number is an integer
+            if isinstance(incident_number, str):
+                incident_number = int(incident_number)
+            
+            with self.db_conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM incidents WHERE incident_number = %s",
+                    (incident_number,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    # Row is a RealDictCursor dict, access by column name
+                    incident_id = str(row['id'])  # Convert UUID to string
+                    logger.debug(f"Found incident ID {incident_id} for incident #{incident_number}")
+                    return incident_id
+                else:
+                    logger.error(f"Incident #{incident_number} not found in database")
+                    return None
+        except Exception as e:
+            logger.error(f"Failed to get incident ID for #{incident_number}: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return None
+    
     def _save_remediation_result(self, result: dict):
         """Save remediation result to database"""
         if not self.db_conn:
+            return
+        
+        # Check if we have a valid incident_id
+        if not result.get('incident_id'):
+            logger.warning(f"Cannot save remediation result: incident_id is missing")
             return
         
         try:
@@ -175,7 +211,7 @@ class RemediationService:
                         NOW()
                     )
                 """, {
-                    'incident_id': result.get('incident_id', ''),
+                    'incident_id': result.get('incident_id'),
                     'incident_number': result['incident_number'],
                     'success': result['success'],
                     'actions_taken': result.get('actions_taken', 0),
@@ -280,6 +316,11 @@ Lesson: {lessons}
         logger.info(f"Confidence: {diagnosis.get('confidence', 0.0):.2f}")
         logger.info("=" * 80)
         
+        # Debug incident structure
+        logger.info(f"🔍 DEBUG - Incident keys: {list(incident.keys())}")
+        logger.info(f"🔍 DEBUG - Affected devices: {incident.get('affected_devices')}")
+        logger.info(f"🔍 DEBUG - Primary device: {incident.get('primary_device')}")
+        
         try:
             # Check if we should auto-execute
             if not self._should_auto_execute(diagnosis):
@@ -305,7 +346,8 @@ Lesson: {lessons}
             self.stats['total_resolution_time'] += result.get('resolution_time', 0.0)
             
             # Save to database
-            result['incident_id'] = incident.get('incident_id')
+            # Get the incident ID (UUID) from the database using incident_number
+            result['incident_id'] = self._get_incident_id(incident_number)
             self._save_remediation_result(result)
             
             # Publish result

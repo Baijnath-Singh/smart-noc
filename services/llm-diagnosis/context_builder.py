@@ -116,11 +116,12 @@ class ContextBuilder:
                     incident_type
                 )
                 
-                # Find relevant KB articles
+                # Find relevant KB articles (pass anomalies for event_type extraction)
                 context['vector_kb_articles'] = self._get_vector_relevant_kb(
                     search_query,
                     incident_type,
-                    primary_device
+                    primary_device,
+                    context['anomalies']  # Pass anomalies for better event_type matching
                 )
                 
                 logger.info(f"Vector search completed for incident #{incident_number}")
@@ -543,13 +544,51 @@ class ContextBuilder:
         self,
         query_text: str,
         incident_type: Optional[str] = None,
-        device_id: Optional[str] = None
+        device_id: Optional[str] = None,
+        anomalies: Optional[List[Dict[str, Any]]] = None
     ) -> Optional[str]:
         """Find relevant knowledge base articles using vector search"""
         if not self.vector_kb:
             return None
         
         try:
+            # Extract actual event_type from anomalies for more precise KB matching
+            event_type_for_search = None
+            if anomalies:
+                # Count occurrences of each event type
+                from collections import Counter
+                event_type_counts = Counter()
+                for anomaly in anomalies:
+                    anomaly_data = anomaly.get('anomaly_data', {})
+                    event_type = anomaly_data.get('event_type')
+                    if event_type:
+                        event_type_counts[event_type] += 1
+                
+                if event_type_counts:
+                    # Prioritize specific event types over generic ones
+                    # Generic types to deprioritize
+                    generic_types = {'CONFIG_MISMATCH', 'UNKNOWN', 'ML_DETECTED_ANOMALY'}
+                    
+                    # Filter out generic types if we have specific ones
+                    specific_types = {et: count for et, count in event_type_counts.items() 
+                                     if et not in generic_types}
+                    
+                    if specific_types:
+                        # Use the most common specific event type
+                        event_type_for_search = max(specific_types.items(), key=lambda x: x[1])[0]
+                        logger.info(f"Extracted event_type from anomalies: {event_type_for_search} "
+                                   f"(count: {specific_types[event_type_for_search]}, "
+                                   f"all types: {dict(event_type_counts)})")
+                    else:
+                        # Fall back to most common generic type
+                        event_type_for_search = event_type_counts.most_common(1)[0][0]
+                        logger.info(f"Using generic event_type: {event_type_for_search} "
+                                   f"(all types: {dict(event_type_counts)})")
+            
+            # Fallback to incident_type if no event_type found in anomalies
+            if not event_type_for_search:
+                event_type_for_search = incident_type if incident_type and incident_type != 'UNKNOWN' else None
+            
             # Enhanced vendor and platform detection
             vendor = "generic"
             platform = None
@@ -589,7 +628,7 @@ class ContextBuilder:
             # Try with filters first, if no results, retry without filters for broader semantic match
             results = self.vector_kb.find_relevant_kb(
                 query_text=query_text,
-                event_type=incident_type if incident_type and incident_type != 'UNKNOWN' else None,
+                event_type=event_type_for_search,  # Use actual event_type from anomalies
                 vendor=vendor,
                 platform=platform,
                 top_k=config.VECTOR_KB_ARTICLES_COUNT,

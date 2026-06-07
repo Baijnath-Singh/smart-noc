@@ -267,11 +267,43 @@ class DiagnosisService:
             self.stats['total_tokens'] += metadata.get('total_tokens', 0)
             self.stats['total_cost'] += metadata.get('estimated_cost_usd', 0.0)
             
-            logger.success(
-                f"Diagnosed incident #{incident_number}: "
-                f"{diagnosis.get('root_cause', '')[:100]}... "
-                f"(confidence: {diagnosis.get('confidence', 0):.2f})"
-            )
+            # Enhanced logging for diagnosis details
+            logger.info("=" * 80)
+            logger.success(f"✅ INCIDENT #{incident_number} DIAGNOSIS COMPLETE")
+            logger.info("=" * 80)
+            logger.info(f"📊 INCIDENT TYPE: {incident.get('incident_type', 'UNKNOWN')}")
+            logger.info(f"🎯 SEVERITY: {incident.get('severity', 'N/A')}")
+            logger.info(f"🖥️  AFFECTED DEVICES: {', '.join(incident.get('affected_devices', []))}")
+            logger.info(f"📈 CONFIDENCE: {diagnosis.get('confidence', 0):.2f}")
+            logger.info("-" * 80)
+            logger.info("🔍 ROOT CAUSE:")
+            logger.info(f"   {diagnosis.get('root_cause', 'Unknown')}")
+            logger.info("-" * 80)
+            
+            # Log remediation plan if present
+            remediation_plan = diagnosis.get('remediation_plan', [])
+            if remediation_plan:
+                logger.info("🔧 REMEDIATION PLAN:")
+                for i, step in enumerate(remediation_plan, 1):
+                    if isinstance(step, dict):
+                        logger.info(f"   Step {i}: {step.get('action', 'N/A')}")
+                        logger.info(f"           {step.get('description', '')}")
+                    elif isinstance(step, str):
+                        logger.info(f"   Step {i}: {step}")
+                logger.info("-" * 80)
+            
+            # Log KB articles used
+            kb_articles = context.get('vector_kb_articles', '')
+            if kb_articles and 'KB Article' in kb_articles:
+                logger.info("📚 KNOWLEDGE BASE ARTICLES USED:")
+                for line in kb_articles.split('\n')[:10]:  # Show first 10 lines
+                    if line.strip() and ('KB Article' in line or 'EXT-' in line or 'relevance' in line.lower()):
+                        logger.info(f"   {line.strip()}")
+                logger.info("-" * 80)
+            
+            logger.info(f"⏱️  LLM Tokens: {metadata.get('total_tokens', 0)}, Cost: ${metadata.get('estimated_cost_usd', 0):.4f}")
+            logger.info("=" * 80)
+            
             return True  # Commit offset for successful diagnosis
             
         except Exception as e:

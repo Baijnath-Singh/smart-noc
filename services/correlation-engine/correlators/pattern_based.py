@@ -21,6 +21,17 @@ class PatternBasedCorrelator:
         self.correlation_config = config['correlation']
         self.patterns = self.correlation_config.get('patterns', {})
     
+    def _get_anomaly_type(self, anomaly: Dict) -> str:
+        """
+        Get the relevant anomaly type for pattern matching.
+        Prioritizes event_type over anomaly_type for ML detections.
+        """
+        # For ML-detected anomalies, use the event_type field
+        if anomaly.get('anomaly_type') == 'ML_DETECTED_ANOMALY':
+            return anomaly.get('event_type', anomaly.get('anomaly_type'))
+        # For rule-based anomalies, use anomaly_type
+        return anomaly.get('anomaly_type', '')
+    
     def correlate(self, anomalies: List[Dict]) -> List[Tuple[List[Dict], str, str]]:
         """
         Find pattern-based correlations in anomalies
@@ -57,7 +68,7 @@ class PatternBasedCorrelator:
         # Find anomalies matching performance types
         perf_anomalies = [
             a for a in anomalies
-            if a.get('anomaly_type') in target_types
+            if self._get_anomaly_type(a) in target_types
         ]
         
         if len(perf_anomalies) < min_devices:
@@ -81,9 +92,9 @@ class PatternBasedCorrelator:
         # Find security-related anomalies
         security_anomalies = [
             a for a in anomalies
-            if a.get('anomaly_type') in target_types or
-               'AUTH' in a.get('anomaly_type', '') or
-               'BRUTE' in a.get('anomaly_type', '')
+            if self._get_anomaly_type(a) in target_types or
+               'AUTH' in self._get_anomaly_type(a) or
+               'BRUTE' in self._get_anomaly_type(a)
         ]
         
         if len(security_anomalies) >= min_count:
@@ -101,9 +112,9 @@ class PatternBasedCorrelator:
         # Find connectivity anomalies
         conn_anomalies = [
             a for a in anomalies
-            if a.get('anomaly_type') in target_types or
-               'DOWN' in a.get('anomaly_type', '') or
-               'FLAPPING' in a.get('anomaly_type', '')
+            if self._get_anomaly_type(a) in target_types or
+               'DOWN' in self._get_anomaly_type(a) or
+               'FLAPPING' in self._get_anomaly_type(a)
         ]
         
         if len(conn_anomalies) < min_devices:
@@ -144,10 +155,10 @@ class PatternBasedCorrelator:
         """Find same anomaly type across multiple devices"""
         threshold = self.correlation_config.get('same_type_threshold', 2)
         
-        # Group by anomaly type
+        # Group by anomaly type (using event_type for ML anomalies)
         type_groups = defaultdict(list)
         for anomaly in anomalies:
-            anomaly_type = anomaly.get('anomaly_type', 'UNKNOWN')
+            anomaly_type = self._get_anomaly_type(anomaly)
             type_groups[anomaly_type].append(anomaly)
         
         results = []
@@ -174,7 +185,7 @@ class PatternBasedCorrelator:
         results = []
         for device_id, device_anomalies in device_groups.items():
             if len(device_anomalies) >= threshold:
-                types = set(a.get('anomaly_type') for a in device_anomalies)
+                types = set(self._get_anomaly_type(a) for a in device_anomalies)
                 if len(types) >= 2:  # Different types
                     logger.debug(f"Same-device pattern: {device_id} with {len(types)} anomaly types")
                     results.append((device_anomalies, 'DEVICE_FAILURE', 'PATTERN_BASED'))

@@ -222,52 +222,169 @@ class RemediationAgent:
         response = self.llm.invoke([HumanMessage(content=prompt)])
         plan_text = response.content
         
-        logger.info(f"Remediation plan created:\n{plan_text}")
+        logger.info("=" * 80)
+        logger.info("📋 REMEDIATION PLAN CREATED")
+        logger.info("=" * 80)
+        logger.info(plan_text)
+        logger.info("=" * 80)
         
         # Parse plan into actionable steps
-        device = diagnosis.get('primary_device', 'core-router-01')
+        # Try to get device from state (incident data) first, then diagnosis, then fallback
+        device = state.get('primary_device') or diagnosis.get('primary_device')
         
-        # For now, use a standard plan for interface issues
-        if 'INTERFACE' in state['incident_type'] or 'DEVICE_FAILURE' in state['incident_type']:
-            state['remediation_plan'] = [
-                {
-                    "step": 1,
-                    "tool": "clear_interface_counters",
-                    "device": device,
-                    "interface": "GigabitEthernet0/1",
-                    "reason": "Reset error counters to establish new baseline"
-                },
-                {
-                    "step": 2,
-                    "tool": "reload_interface",
-                    "device": device,
-                    "interface": "GigabitEthernet0/1",
-                    "reason": "Reload interface to clear transient errors"
-                },
-                {
-                    "step": 3,
-                    "tool": "verify_interface_health",
-                    "device": device,
-                    "interface": "GigabitEthernet0/1",
-                    "reason": "Verify interface is healthy after remediation"
-                }
-            ]
+        # Debug logging
+        logger.info(f"🔍 DEBUG - Device extraction:")
+        logger.info(f"  state.primary_device: {state.get('primary_device')}")
+        logger.info(f"  diagnosis.primary_device: {diagnosis.get('primary_device')}")
+        logger.info(f"  state.affected_devices: {state.get('affected_devices')}")
+        logger.info(f"  affected_devices type: {type(state.get('affected_devices'))}")
+        
+        if not device and state.get('affected_devices'):
+            affected = state['affected_devices']
+            if isinstance(affected, list) and len(affected) > 0:
+                device = affected[0]
+            elif isinstance(affected, str):
+                # Could be comma-separated string
+                devices = [d.strip() for d in affected.split(',')]
+                device = devices[0] if devices else None
+        
+        if not device:
+            device = 'unknown-device'
+        
+        logger.info(f"📍 Target device for remediation: {device}")
+        
+        # Parse the LLM's plan text
+        parsed_plan = self._parse_remediation_plan(plan_text, device, state['incident_type'])
+        
+        if parsed_plan:
+            state['remediation_plan'] = parsed_plan
+            logger.info(f"✅ Parsed {len(parsed_plan)} steps from LLM plan")
         else:
-            # Generic plan for other incident types
-            state['remediation_plan'] = [
-                {
-                    "step": 1,
-                    "tool": "restart_service",
-                    "device": device,
-                    "service": "bgp",
-                    "reason": "Restart service to recover"
-                }
-            ]
+            # Fallback to hardcoded plans if parsing fails
+            logger.warning("⚠️  Failed to parse LLM plan, using fallback")
+            if 'INTERFACE' in state['incident_type'] or 'DEVICE_FAILURE' in state['incident_type']:
+                state['remediation_plan'] = [
+                    {
+                        "step": 1,
+                        "tool": "clear_interface_counters",
+                        "device": device,
+                        "interface": "GigabitEthernet0/1",
+                        "reason": "Reset error counters to establish new baseline"
+                    },
+                    {
+                        "step": 2,
+                        "tool": "reload_interface",
+                        "device": device,
+                        "interface": "GigabitEthernet0/1",
+                        "reason": "Reload interface to clear transient errors"
+                    }
+                ]
+            else:
+                # Generic plan for other incident types
+                state['remediation_plan'] = [
+                    {
+                        "step": 1,
+                        "tool": "apply_configuration",
+                        "device": device,
+                        "config_lines": ["interface GigabitEthernet0/1", "no shutdown"],
+                        "reason": "Apply basic configuration fix"
+                    }
+                ]
         
         state['current_action'] = 0
         state['current_phase'] = 'remediation'
         
         return state
+    
+    def _parse_remediation_plan(self, plan_text: str, device: str, incident_type: str) -> List[Dict[str, Any]]:
+        """
+        Parse LLM-generated remediation plan text into executable steps
+        
+        Expected format:
+        STEP 1: tool_name - reason
+        STEP 2: tool_name - reason
+        """
+        import re
+        
+        steps = []
+        lines = plan_text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line or not line.startswith('STEP'):
+                continue
+            
+            # Parse: STEP 1: clear_interface_counters - Reset error counters...
+            match = re.match(r'STEP\s+(\d+):\s+(\w+)\s*-\s*(.+)', line, re.IGNORECASE)
+            if not match:
+                continue
+            
+            step_num = int(match.group(1))
+            tool_name = match.group(2).strip()
+            reason = match.group(3).strip()
+            
+            # Build step based on tool type
+            step = {
+                "step": step_num,
+                "tool": tool_name,
+                "device": device,
+                "reason": reason
+            }
+            
+            # Add tool-specific parameters
+            if tool_name in ['clear_interface_counters', 'reload_interface']:
+                # Try to extract interface from reason or use default
+                # Only match if interface name is preceded by "interface" or "port" with colon or space
+                # Valid: "interface: GigabitEthernet0/1", "port 1/20"
+                # Invalid: "Reload the interface to reset" (skip "to")
+                interface_match = re.search(r'(?:interface|port)[:\s]+([A-Za-z]+[A-Za-z0-9/]+)', reason, re.IGNORECASE)
+                if interface_match and len(interface_match.group(1)) > 2:  # Avoid matching short words like "to", "on"
+                    step['interface'] = interface_match.group(1)
+                else:
+                    step['interface'] = 'GigabitEthernet0/1'  # Default
+            
+            elif tool_name == 'restart_service':
+                # Extract service name from reason or use incident-based default
+                service_match = re.search(r'(bgp|ospf|isis|rip|eigrp|vrrp|lacp|stp)', reason, re.IGNORECASE)
+                if service_match:
+                    step['service'] = service_match.group(1).lower()
+                elif 'BGP' in incident_type:
+                    step['service'] = 'bgp'
+                else:
+                    step['service'] = 'routing'  # Generic default
+            
+            elif tool_name == 'apply_configuration':
+                # For VLAN issues, generate VLAN config
+                if 'VLAN' in reason.upper() or 'VLAN' in incident_type:
+                    step['config_lines'] = [
+                        "interface GigabitEthernet0/1",
+                        "switchport mode trunk",
+                        "switchport trunk native vlan 10"
+                    ]
+                # For LAG/LACP issues
+                elif 'LAG' in reason.upper() or 'LACP' in reason.upper():
+                    step['config_lines'] = [
+                        "interface GigabitEthernet0/1",
+                        "channel-group 1 mode active"
+                    ]
+                else:
+                    step['config_lines'] = [
+                        "interface GigabitEthernet0/1",
+                        "no shutdown"
+                    ]
+            
+            elif tool_name == 'clear_arp_cache':
+                # No additional parameters needed
+                pass
+            
+            else:
+                # Unknown tool, skip
+                logger.warning(f"Unknown tool in plan: {tool_name}")
+                continue
+            
+            steps.append(step)
+        
+        return steps
     
     def _execute_remediation_action(self, state: RemediationState) -> RemediationState:
         """
@@ -281,7 +398,16 @@ class RemediationAgent:
             return state
         
         action = plan[current_step]
-        logger.info(f"[PHASE 4] Executing step {action['step']}: {action['tool']}")
+        logger.info("-" * 80)
+        logger.info(f"[PHASE 4] 🔧 Executing Step {action['step']}/{len(plan)}: {action['tool']}")
+        logger.info(f"   Device: {action['device']}")
+        if 'interface' in action:
+            logger.info(f"   Interface: {action['interface']}")
+        if 'service' in action:
+            logger.info(f"   Service: {action['service']}")
+        if 'reason' in action:
+            logger.info(f"   Reason: {action['reason']}")
+        logger.info("-" * 80)
         
         start_time = time.time()
         
@@ -296,9 +422,15 @@ class RemediationAgent:
                 result = self.tools.reload_interface(device, action['interface'])
             elif tool_name == "restart_service":
                 result = self.tools.restart_service(device, action['service'])
+            elif tool_name == "apply_configuration":
+                config_lines = action.get('config_lines', [])
+                result = self.tools.apply_configuration(device, config_lines)
+            elif tool_name == "clear_arp_cache":
+                result = self.tools.clear_arp_cache(device)
             elif tool_name == "verify_interface_health":
-                result = self.tools.verify_interface_health(device, action['interface'])
+                result = self.tools.verify_interface_health(device, action.get('interface', 'GigabitEthernet0/1'))
             else:
+                logger.error(f"Unknown tool: {tool_name}")
                 result = {"success": False, "error": f"Unknown tool: {tool_name}"}
             
             execution_time = time.time() - start_time
@@ -489,6 +621,8 @@ class RemediationAgent:
             "incident_id": incident.get('incident_id', ''),
             "incident_number": incident.get('incident_number', 0),
             "incident_type": incident.get('incident_type', 'UNKNOWN'),
+            "affected_devices": incident.get('affected_devices', []),
+            "primary_device": incident.get('primary_device', ''),
             "diagnosis": diagnosis,
             "current_phase": "planning",
             "investigation_steps": [],

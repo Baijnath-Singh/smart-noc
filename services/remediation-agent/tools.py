@@ -120,7 +120,9 @@ class NetworkTools:
         Clear interface error counters
         Equivalent to: clear counters GigabitEthernet0/1
         """
-        logger.info(f"[TOOL] clear_interface_counters: {device} {interface}")
+        logger.info(f"[TOOL] 🧹 clear_interface_counters on {device}")
+        logger.info(f"       Interface: {interface}")
+        logger.info(f"       📝 CLI Command: 'clear counters {interface}'")
         
         if self.simulation_mode:
             time.sleep(0.5)
@@ -136,7 +138,14 @@ class NetworkTools:
         Reload interface (shut/no shut)
         Equivalent to: shutdown / no shutdown
         """
-        logger.info(f"[TOOL] reload_interface: {device} {interface}")
+        logger.info(f"[TOOL] 🔌 reload_interface on {device}")
+        logger.info(f"       Interface: {interface}")
+        logger.info(f"       📝 CLI Commands:")
+        logger.info(f"           configure terminal")
+        logger.info(f"           interface {interface}")
+        logger.info(f"           shutdown")
+        logger.info(f"           no shutdown")
+        logger.info(f"           end")
         
         if self.simulation_mode:
             time.sleep(1.0)  # Takes longer
@@ -152,7 +161,9 @@ class NetworkTools:
         Restart a service/process
         Equivalent to: restart process <name>
         """
-        logger.info(f"[TOOL] restart_service: {device} {service}")
+        logger.info(f"[TOOL] 🔄 restart_service on {device}")
+        logger.info(f"       Service: {service}")
+        logger.info(f"       📝 CLI Command: 'restart {service}'")
         
         if self.simulation_mode:
             time.sleep(2.0)
@@ -170,7 +181,13 @@ class NetworkTools:
         Apply configuration changes
         Equivalent to: configure terminal + config lines
         """
-        logger.info(f"[TOOL] apply_configuration: {device} ({len(config_lines)} lines)")
+        logger.info(f"[TOOL] ⚙️  apply_configuration on {device}")
+        logger.info(f"       Configuration lines: {len(config_lines)}")
+        logger.info(f"       📝 CLI Commands:")
+        logger.info(f"           configure terminal")
+        for line in config_lines:
+            logger.info(f"           {line}")
+        logger.info(f"           end")
         
         if self.simulation_mode:
             time.sleep(1.5)
@@ -186,7 +203,8 @@ class NetworkTools:
         Clear ARP cache
         Equivalent to: clear arp-cache
         """
-        logger.info(f"[TOOL] clear_arp_cache: {device}")
+        logger.info(f"[TOOL] 🗑️  clear_arp_cache on {device}")
+        logger.info(f"       📝 CLI Command: 'clear arp-cache'")
         
         if self.simulation_mode:
             time.sleep(0.5)

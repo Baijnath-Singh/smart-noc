@@ -16,6 +16,8 @@ class RemediationState(TypedDict):
     incident_id: str
     incident_number: int
     incident_type: str
+    affected_devices: List[str]  # Devices involved in the incident
+    primary_device: str  # Primary device to remediate
     diagnosis: Dict[str, Any]  # Root cause, confidence, etc.
     
     # Workflow state
