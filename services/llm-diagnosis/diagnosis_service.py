@@ -19,6 +19,7 @@ from loguru import logger
 import config
 from llm_client import LLMClient
 from context_builder import ContextBuilder
+from confidence_calibrator import ConfidenceCalibrator
 from prompts.system_prompts import SYSTEM_PROMPT, get_prompt_template
 
 
@@ -55,6 +56,14 @@ class DiagnosisService:
         # Initialize database
         self.engine = create_engine(config.DATABASE_URL)
         self.Session = sessionmaker(bind=self.engine)
+        
+        # Initialize confidence calibrator
+        try:
+            self.calibrator = ConfidenceCalibrator(engine=self.engine)
+            logger.info("✓ Confidence calibrator initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize calibrator: {e}, will use uncalibrated confidence")
+            self.calibrator = None
         
         # Initialize Kafka
         self.consumer = self._create_consumer()
@@ -255,6 +264,30 @@ class DiagnosisService:
                 self.stats['failed'] += 1
                 return True  # Commit offset for failed validation
             
+            # Calibrate confidence score based on historical accuracy
+            raw_confidence = diagnosis.get('confidence', 0.0)
+            incident_type = incident.get('incident_type', 'UNKNOWN')
+            
+            if self.calibrator:
+                calibrated_confidence, calibration_method = self.calibrator.calibrate(
+                    raw_confidence,
+                    incident_type
+                )
+                diagnosis['calibrated_confidence'] = calibrated_confidence
+                diagnosis['raw_confidence'] = raw_confidence
+                diagnosis['calibration_method'] = calibration_method
+                
+                logger.info(
+                    f"📊 Confidence Calibration: "
+                    f"{raw_confidence:.3f} → {calibrated_confidence:.3f} "
+                    f"({calibration_method})"
+                )
+            else:
+                # No calibrator available, use raw confidence
+                diagnosis['calibrated_confidence'] = raw_confidence
+                diagnosis['raw_confidence'] = raw_confidence
+                diagnosis['calibration_method'] = 'uncalibrated'
+            
             # Update database
             logger.debug("Updating database...")
             self._update_incident_diagnosis(incident, incident_id, diagnosis, metadata)
@@ -274,7 +307,8 @@ class DiagnosisService:
             logger.info(f"📊 INCIDENT TYPE: {incident.get('incident_type', 'UNKNOWN')}")
             logger.info(f"🎯 SEVERITY: {incident.get('severity', 'N/A')}")
             logger.info(f"🖥️  AFFECTED DEVICES: {', '.join(incident.get('affected_devices', []))}")
-            logger.info(f"📈 CONFIDENCE: {diagnosis.get('confidence', 0):.2f}")
+            logger.info(f"📈 RAW CONFIDENCE: {diagnosis.get('raw_confidence', 0):.2f}")
+            logger.info(f"📊 CALIBRATED CONFIDENCE: {diagnosis.get('calibrated_confidence', 0):.2f} ({diagnosis.get('calibration_method', 'unknown')})")
             logger.info("-" * 80)
             
             # Log Chain-of-Thought reasoning
@@ -392,7 +426,7 @@ class DiagnosisService:
             params = {
                 'incident_id': incident_id,
                 'root_cause': diagnosis.get('root_cause', ''),
-                'confidence': diagnosis.get('confidence', 0.0),
+                'confidence': diagnosis.get('calibrated_confidence', 0.0),  # Use calibrated confidence
                 'remediation_plan': remediation_json,
                 'llm_model': config.LLM_MODEL,
                 'diagnosis_metadata': json.dumps(metadata)
@@ -403,14 +437,17 @@ class DiagnosisService:
                 # Update main incidents table (only columns that exist in schema)
                 # remediation_plan is TEXT column, reasoning stored in incident_metadata
                 try:
-                    # Prepare incident metadata with reasoning
+                    # Prepare incident metadata with reasoning and calibration info
                     incident_metadata = {
                         'reasoning': diagnosis.get('reasoning', ''),
                         'llm_model': config.LLM_MODEL,
                         'llm_metadata': metadata,
                         'affected_components': diagnosis.get('affected_components', []),
                         'escalation_needed': diagnosis.get('escalation_needed', False),
-                        'estimated_resolution_minutes': diagnosis.get('estimated_resolution_minutes')
+                        'estimated_resolution_minutes': diagnosis.get('estimated_resolution_minutes'),
+                        'raw_confidence': diagnosis.get('raw_confidence', 0.0),
+                        'calibrated_confidence': diagnosis.get('calibrated_confidence', 0.0),
+                        'calibration_method': diagnosis.get('calibration_method', 'uncalibrated')
                     }
                     
                     session.execute(
@@ -452,7 +489,7 @@ class DiagnosisService:
                         {
                             'incident_id': incident_id,
                             'root_cause': diagnosis.get('root_cause', ''),
-                            'confidence': diagnosis.get('confidence', 0.0),
+                            'confidence': diagnosis.get('calibrated_confidence', 0.0),  # Use calibrated confidence
                             'remediation_plan': remediation_json,
                             'llm_model': config.LLM_MODEL,
                             'tokens_used': metadata.get('total_tokens', 0),

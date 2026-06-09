@@ -237,7 +237,14 @@ smart-noc/
 │   ├── utils/              # Shared utilities
 │   └── config/             # Configuration
 ├── tests/                  # Tests
-├── scripts/                # Helper scripts
+├── scripts/                # Organized scripts (setup, testing, utilities)
+│   ├── setup/              # Setup and initialization
+│   ├── teardown/           # Cleanup scripts
+│   ├── testing/            # Test execution
+│   └── utilities/          # Helper tools
+├── test-data/              # Test data files
+│   ├── incidents/          # Test incidents
+│   └── logs/               # Test log samples
 ├── docker-compose.yml      # Local development
 └── README.md
 ```
@@ -257,22 +264,40 @@ If you're new to some technologies:
 
 ## 🚦 Quick Start
 
+### **Linux/Mac:**
 ```bash
 # 1. Clone and setup
-cd c:\Users\baisingh\ng-iam\smart-noc
-.\scripts\setup.ps1
+git clone <repo-url>
+cd smart-noc
 
-# 2. Start Phase 1 (log pipeline)
-cd phase1-log-pipeline
-docker-compose up -d
+# 2. Run automated setup
+./scripts/setup/setup-noc.sh
 
-# 3. Generate sample logs
-python services/log-generator/generate_logs.py
+# 3. Verify services are running
+./scripts/setup/verify-status.sh
 
-# 4. View logs in browser
+# 4. Run tests
+./scripts/testing/test-phases.sh
+
+# 5. View dashboards
 # Kafka UI: http://localhost:8080
-# Grafana: http://localhost:3000
+# Grafana: http://localhost:3000 (admin/admin)
 ```
+
+### **Windows PowerShell:**
+```powershell
+# 1. Clone and setup
+git clone <repo-url>
+cd smart-noc
+
+# 2. Run automated setup
+.\scripts\setup\setup-noc.ps1
+
+# 3. Verify services
+.\scripts\setup\verify-status.sh
+```
+
+**📚 For detailed scripts documentation, see [scripts/README.md](scripts/README.md)**
 
 ---
 
