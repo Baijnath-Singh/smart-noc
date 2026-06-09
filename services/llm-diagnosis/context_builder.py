@@ -502,43 +502,137 @@ class ContextBuilder:
         query_text: str,
         incident_type: Optional[str] = None
     ) -> Optional[str]:
-        """Find similar past incidents using vector similarity search"""
+        """
+        Find similar past incidents and format them as few-shot examples
+        
+        This replaces static few-shot examples with dynamic, relevant examples
+        from actual past diagnoses.
+        """
         if not self.vector_kb:
             return None
         
         try:
-            # Search for similar incidents
+            # Search for similar incidents (get top 2-3 for few-shot)
             results = self.vector_kb.find_similar_incidents(
                 query_text=query_text,
-                top_k=config.VECTOR_SIMILAR_INCIDENTS_COUNT,
+                top_k=min(config.VECTOR_SIMILAR_INCIDENTS_COUNT, 3),  # Limit to 2-3 for few-shot
                 min_similarity=config.VECTOR_MIN_SIMILARITY,
                 incident_type=incident_type if incident_type and incident_type != 'UNKNOWN' else None
             )
             
-            if not results:
+            if not results or len(results) == 0:
+                logger.info("No similar incidents found for few-shot examples")
                 return None
             
-            # Format results
-            lines = [f"Vector Search - Similar Past Incidents ({len(results)} found):\n"]
-            for i, result in enumerate(results, 1):
-                metadata = result.get('metadata', {})
-                relevance = result.get('relevance', 0.0)
-                
-                lines.append(
-                    f"{i}. [{metadata.get('incident_type', 'UNKNOWN')}] "
-                    f"Incident #{metadata.get('incident_number', 'N/A')}\n"
-                    f"   Device: {metadata.get('primary_device', 'unknown')}, "
-                    f"Severity: {metadata.get('severity', 'unknown')}\n"
-                    f"   Root Cause: {metadata.get('root_cause', 'N/A')[:150]}\n"
-                    f"   Relevance: {relevance:.3f}\n"
-                )
+            # Fetch full diagnosis details from database for selected incidents
+            few_shot_examples = []
             
-            logger.info(f"Found {len(results)} similar incidents via vector search")
-            return "\n".join(lines)
+            for result in results[:2]:  # Use top 2 as few-shot examples
+                metadata = result.get('metadata', {})
+                incident_number = metadata.get('incident_number')
+                
+                if not incident_number:
+                    continue
+                
+                # Fetch full incident data from database
+                try:
+                    from sqlalchemy import text
+                    query = text("""
+                        SELECT 
+                            incident_number,
+                            incident_type,
+                            primary_device,
+                            affected_devices,
+                            severity,
+                            root_cause,
+                            remediation_plan
+                        FROM incidents
+                        WHERE incident_number = :incident_number
+                        AND root_cause IS NOT NULL
+                        AND remediation_plan IS NOT NULL
+                    """)
+                    
+                    # Use connection context for SQLAlchemy 2.0 compatibility
+                    with self.engine.connect() as conn:
+                        result_proxy = conn.execute(query, {"incident_number": incident_number})
+                        incident_data = result_proxy.fetchone()
+                    
+                    if incident_data:
+                        # Parse remediation plan (it's stored as TEXT JSON)
+                        import json
+                        try:
+                            remediation_plan = json.loads(incident_data[6]) if incident_data[6] else []
+                        except:
+                            remediation_plan = []
+                        
+                        # Format as few-shot example
+                        example = self._format_as_few_shot_example(
+                            incident_number=incident_data[0],
+                            incident_type=incident_data[1],
+                            primary_device=incident_data[2],
+                            affected_devices=incident_data[3],
+                            severity=incident_data[4],
+                            root_cause=incident_data[5],
+                            remediation_plan=remediation_plan,
+                            relevance=result.get('relevance', 0.0)
+                        )
+                        
+                        few_shot_examples.append(example)
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to fetch incident #{incident_number} details: {e}")
+                    continue
+            
+            if not few_shot_examples:
+                logger.info("No complete diagnoses found for few-shot examples")
+                return None
+            
+            # Format as few-shot learning section
+            header = f"\n**Few-Shot Examples (from {len(few_shot_examples)} similar past incidents):**\n\n"
+            formatted_examples = header + "\n\n".join(few_shot_examples)
+            
+            logger.info(f"Generated {len(few_shot_examples)} dynamic few-shot examples from similar incidents")
+            return formatted_examples
             
         except Exception as e:
             logger.error(f"Vector similar incidents search failed: {e}")
             return None
+    
+    def _format_as_few_shot_example(
+        self,
+        incident_number: int,
+        incident_type: str,
+        primary_device: str,
+        affected_devices: list,
+        severity: str,
+        root_cause: str,
+        remediation_plan: list,
+        relevance: float
+    ) -> str:
+        """Format an incident as a few-shot example"""
+        import json
+        
+        # Build concise input description
+        devices_str = ', '.join(affected_devices) if isinstance(affected_devices, list) else str(affected_devices)
+        
+        input_desc = f"Incident Type: {incident_type}, Devices: {devices_str}, Severity: {severity}"
+        
+        # Build output JSON (truncate long plans to save tokens)
+        output_json = {
+            "root_cause": root_cause[:200] if root_cause else "Unknown",  # Truncate long root causes
+            "remediation_plan": remediation_plan[:3] if remediation_plan else []  # Keep first 3 steps
+        }
+        
+        # Format as example
+        example = f"""EXAMPLE (Incident #{incident_number}, relevance: {relevance:.2f}):
+Input: {input_desc}
+
+Output:
+```json
+{json.dumps(output_json, indent=2)}
+```"""
+        
+        return example
     
     def _get_vector_relevant_kb(
         self,

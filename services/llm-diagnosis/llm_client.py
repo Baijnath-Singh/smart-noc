@@ -12,6 +12,7 @@ import openai
 from anthropic import Anthropic
 
 import config
+from models import DiagnosisResponse, validate_diagnosis, get_json_schema, DiagnosisValidationError
 
 
 class LLMClient:
@@ -93,25 +94,64 @@ class LLMClient:
             raise
     
     def _call_openai(self, system_prompt: str, user_message: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Call OpenAI API"""
+        """Call OpenAI API with Pydantic structured output validation"""
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                timeout=self.timeout
-            )
+            # Get JSON schema for structured output
+            json_schema = get_json_schema()
             
-            # Extract response
+            # OpenAI supports strict JSON schema enforcement (beta feature)
+            # Falls back to json_object mode if schema enforcement not supported
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "diagnosis_response",
+                            "strict": True,
+                            "schema": json_schema
+                        }
+                    },
+                    timeout=self.timeout
+                )
+                logger.debug("✓ Using strict JSON schema enforcement")
+            except Exception as schema_error:
+                # Fallback to basic json_object mode
+                logger.warning(f"JSON schema mode not supported, falling back to json_object: {schema_error}")
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                    timeout=self.timeout
+                )
+            
+            # Extract and parse response
             content = response.choices[0].message.content
-            logger.debug(f"Raw LLM response: {content[:500]}...")  # Log first 500 chars
-            diagnosis = json.loads(content)
-            logger.debug(f"Parsed diagnosis keys: {list(diagnosis.keys())}")  # Log keys
+            logger.debug(f"Raw LLM response: {content[:500]}...")
+            diagnosis_dict = json.loads(content)
+            logger.debug(f"Parsed diagnosis keys: {list(diagnosis_dict.keys())}")
+            
+            # Validate with Pydantic (ensures type safety and constraints)
+            try:
+                validated_diagnosis = validate_diagnosis(diagnosis_dict)
+                logger.info(f"✓ Pydantic validation passed: {len(validated_diagnosis.remediation_plan)} steps, confidence={validated_diagnosis.confidence:.2f}")
+                # Convert back to dict for compatibility with existing code
+                diagnosis = validated_diagnosis.model_dump()
+            except DiagnosisValidationError as e:
+                logger.error(f"Pydantic validation failed: {e}")
+                logger.error(f"Raw response: {json.dumps(diagnosis_dict, indent=2)}")
+                raise ValueError(f"LLM response validation failed: {e}")
             
             # Extract metadata
             metadata = {
@@ -142,7 +182,7 @@ class LLMClient:
             raise
     
     def _call_anthropic(self, system_prompt: str, user_message: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Call Anthropic Claude API"""
+        """Call Anthropic Claude API with Pydantic validation"""
         try:
             response = self.client.messages.create(
                 model=self.model,
@@ -155,9 +195,20 @@ class LLMClient:
                 timeout=self.timeout
             )
             
-            # Extract response
+            # Extract and parse response
             content = response.content[0].text
-            diagnosis = json.loads(content)
+            diagnosis_dict = json.loads(content)
+            logger.debug(f"Parsed diagnosis keys: {list(diagnosis_dict.keys())}")
+            
+            # Validate with Pydantic
+            try:
+                validated_diagnosis = validate_diagnosis(diagnosis_dict)
+                logger.info(f"✓ Pydantic validation passed: {len(validated_diagnosis.remediation_plan)} steps, confidence={validated_diagnosis.confidence:.2f}")
+                diagnosis = validated_diagnosis.model_dump()
+            except DiagnosisValidationError as e:
+                logger.error(f"Pydantic validation failed: {e}")
+                logger.error(f"Raw response: {json.dumps(diagnosis_dict, indent=2)}")
+                raise ValueError(f"LLM response validation failed: {e}")
             
             # Extract metadata
             metadata = {
@@ -188,29 +239,30 @@ class LLMClient:
             raise
     
     def validate_diagnosis(self, diagnosis: Dict[str, Any]) -> bool:
-        """Validate diagnosis response structure"""
-        required_fields = ['root_cause', 'confidence', 'remediation_plan']
+        """
+        Validate diagnosis response using Pydantic
         
-        for field in required_fields:
-            if field not in diagnosis:
-                logger.warning(f"Missing required field in diagnosis: {field}")
+        NOTE: Pydantic validation is now done automatically in _call_openai/_call_anthropic.
+        This method is kept for backward compatibility and additional business logic checks.
+        """
+        try:
+            # Pydantic validation (type safety, required fields, constraints)
+            validated = validate_diagnosis(diagnosis)
+            
+            # Additional business logic validation
+            # Check minimum confidence threshold (business rule, not schema validation)
+            if validated.confidence < config.DIAGNOSIS_MIN_CONFIDENCE:
+                logger.warning(
+                    f"Confidence {validated.confidence:.2f} below minimum "
+                    f"{config.DIAGNOSIS_MIN_CONFIDENCE} - diagnosis may be rejected"
+                )
                 return False
-        
-        # Validate confidence score
-        confidence = diagnosis.get ('confidence', 0)
-        if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 1:
-            logger.warning(f"Invalid confidence score: {confidence}")
+            
+            return True
+            
+        except DiagnosisValidationError as e:
+            logger.error(f"Diagnosis validation failed: {e}")
             return False
-        
-        # Check minimum confidence threshold
-        if confidence < config.DIAGNOSIS_MIN_CONFIDENCE:
-            logger.warning(f"Confidence {confidence} below minimum {config.DIAGNOSIS_MIN_CONFIDENCE}")
+        except Exception as e:
+            logger.error(f"Unexpected validation error: {e}")
             return False
-        
-        # Validate remediation plan structure
-        remediation = diagnosis.get('remediation_plan', [])
-        if not isinstance(remediation, list):
-            logger.warning("Remediation plan is not a list")
-            return False
-        
-        return True

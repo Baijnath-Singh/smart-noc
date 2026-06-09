@@ -276,6 +276,17 @@ class DiagnosisService:
             logger.info(f"🖥️  AFFECTED DEVICES: {', '.join(incident.get('affected_devices', []))}")
             logger.info(f"📈 CONFIDENCE: {diagnosis.get('confidence', 0):.2f}")
             logger.info("-" * 80)
+            
+            # Log Chain-of-Thought reasoning
+            reasoning = diagnosis.get('reasoning', '')
+            if reasoning:
+                logger.info("🧠 CHAIN-OF-THOUGHT REASONING:")
+                # Format reasoning for better readability
+                for line in reasoning.split('\n'):
+                    if line.strip():
+                        logger.info(f"   {line.strip()}")
+                logger.info("-" * 80)
+            
             logger.info("🔍 ROOT CAUSE:")
             logger.info(f"   {diagnosis.get('root_cause', 'Unknown')}")
             logger.info("-" * 80)
@@ -390,23 +401,35 @@ class DiagnosisService:
             
             with self.Session() as session:
                 # Update main incidents table (only columns that exist in schema)
-                # remediation_plan is TEXT column
+                # remediation_plan is TEXT column, reasoning stored in incident_metadata
                 try:
+                    # Prepare incident metadata with reasoning
+                    incident_metadata = {
+                        'reasoning': diagnosis.get('reasoning', ''),
+                        'llm_model': config.LLM_MODEL,
+                        'llm_metadata': metadata,
+                        'affected_components': diagnosis.get('affected_components', []),
+                        'escalation_needed': diagnosis.get('escalation_needed', False),
+                        'estimated_resolution_minutes': diagnosis.get('estimated_resolution_minutes')
+                    }
+                    
                     session.execute(
                         text("""
                             UPDATE incidents
                             SET root_cause = :root_cause,
                                 remediation_plan = :remediation_plan,
+                                incident_metadata = COALESCE(incident_metadata, '{}'::jsonb) || CAST(:metadata AS jsonb),
                                 updated_at = NOW()
                             WHERE id = CAST(:incident_id AS uuid)
                         """),
                         {
                             'incident_id': incident_id,
                             'root_cause': diagnosis.get('root_cause', ''),
-                            'remediation_plan': remediation_json
+                            'remediation_plan': remediation_json,
+                            'metadata': json.dumps(incident_metadata)
                         }
                     )
-                    logger.debug("✓ Incidents table updated")
+                    logger.debug("✓ Incidents table updated (with reasoning in metadata)")
                 except Exception as e:
                     logger.error(f"Failed to update incidents table: {e}")
                     raise

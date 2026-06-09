@@ -229,15 +229,8 @@ class RemediationAgent:
         logger.info("=" * 80)
         
         # Parse plan into actionable steps
-        # Try to get device from state (incident data) first, then diagnosis, then fallback
-        device = state.get('primary_device') or diagnosis.get('primary_device')
-        
-        # Debug logging
-        logger.info(f"🔍 DEBUG - Device extraction:")
-        logger.info(f"  state.primary_device: {state.get('primary_device')}")
-        logger.info(f"  diagnosis.primary_device: {diagnosis.get('primary_device')}")
-        logger.info(f"  state.affected_devices: {state.get('affected_devices')}")
-        logger.info(f"  affected_devices type: {type(state.get('affected_devices'))}")
+        # Extract device from state (incident data)
+        device = state.get('primary_device')
         
         if not device and state.get('affected_devices'):
             affected = state['affected_devices']
@@ -249,7 +242,7 @@ class RemediationAgent:
                 device = devices[0] if devices else None
         
         if not device:
-            device = 'unknown-device'
+            device = diagnosis.get('primary_device', 'unknown-device')
         
         logger.info(f"📍 Target device for remediation: {device}")
         

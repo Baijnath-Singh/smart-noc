@@ -316,11 +316,6 @@ Lesson: {lessons}
         logger.info(f"Confidence: {diagnosis.get('confidence', 0.0):.2f}")
         logger.info("=" * 80)
         
-        # Debug incident structure
-        logger.info(f"🔍 DEBUG - Incident keys: {list(incident.keys())}")
-        logger.info(f"🔍 DEBUG - Affected devices: {incident.get('affected_devices')}")
-        logger.info(f"🔍 DEBUG - Primary device: {incident.get('primary_device')}")
-        
         try:
             # Check if we should auto-execute
             if not self._should_auto_execute(diagnosis):
