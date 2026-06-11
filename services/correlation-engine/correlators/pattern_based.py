@@ -28,9 +28,9 @@ class PatternBasedCorrelator:
         """
         # For ML-detected anomalies, use the event_type field
         if anomaly.get('anomaly_type') == 'ML_DETECTED_ANOMALY':
-            return anomaly.get('event_type', anomaly.get('anomaly_type'))
+            return anomaly.get('event_type') or anomaly.get('anomaly_type') or 'UNKNOWN'
         # For rule-based anomalies, use anomaly_type
-        return anomaly.get('anomaly_type', '')
+        return anomaly.get('anomaly_type') or 'UNKNOWN'
     
     def correlate(self, anomalies: List[Dict]) -> List[Tuple[List[Dict], str, str]]:
         """

@@ -102,6 +102,9 @@ class AnomalyDetectionService:
         try:
             # Log each incoming log at DEBUG level
             device_id = log.get('device_id', 'unknown')
+            # Handle both string and list device_id
+            if isinstance(device_id, list):
+                device_id = device_id[0] if device_id else 'unknown'
             event_type = log.get('event_type', 'unknown')
             logger.debug(f"Processing: {device_id} - {event_type}")
             

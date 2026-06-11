@@ -5,7 +5,7 @@
         "builtIn": 1,
         "datasource": {
           "type": "grafana",
-          "uid": "-- Grafana --"
+          "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
         },
         "enable": true,
         "hide": true,
@@ -25,7 +25,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -71,12 +71,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as \"Total Decisions\"\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '$__range_s seconds';",
+          "rawSql": "SELECT COUNT(*) as \"Total Decisions\"\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '7 days';",
           "refId": "A",
           "sql": {
             "columns": [
@@ -103,7 +103,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -153,12 +153,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as \"Autonomous Executions\"\nFROM autonomous_decision_log\nWHERE decision = 'execute'\n  AND decided_at >= NOW() - INTERVAL '$__range_s seconds';",
+          "rawSql": "SELECT COUNT(*) as \"Autonomous Executions\"\nFROM autonomous_decision_log\nWHERE decision = 'execute'\n  AND decided_at >= NOW() - INTERVAL '7 days';",
           "refId": "A"
         }
       ],
@@ -168,7 +168,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -214,12 +214,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as \"Approvals Required\"\nFROM autonomous_decision_log\nWHERE decision = 'require_approval'\n  AND decided_at >= NOW() - INTERVAL '$__range_s seconds';",
+          "rawSql": "SELECT COUNT(*) as \"Approvals Required\"\nFROM autonomous_decision_log\nWHERE decision = 'require_approval'\n  AND decided_at >= NOW() - INTERVAL '7 days';",
           "refId": "A"
         }
       ],
@@ -229,7 +229,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -275,12 +275,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as \"Manual Interventions\"\nFROM autonomous_decision_log\nWHERE decision = 'manual_only'\n  AND decided_at >= NOW() - INTERVAL '$__range_s seconds';",
+          "rawSql": "SELECT COUNT(*) as \"Manual Interventions\"\nFROM autonomous_decision_log\nWHERE decision = 'manual_only'\n  AND decided_at >= NOW() - INTERVAL '7 days';",
           "refId": "A"
         }
       ],
@@ -290,7 +290,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -393,12 +393,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  decision,\n  COUNT(*) as count\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY decision\nORDER BY count DESC;",
+          "rawSql": "SELECT \n  decision,\n  COUNT(*) as count\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '7 days'\nGROUP BY decision\nORDER BY count DESC;",
           "refId": "A"
         }
       ],
@@ -408,7 +408,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -526,12 +526,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  risk_level,\n  COUNT(*) as count\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY risk_level\nORDER BY \n  CASE risk_level\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    WHEN 'MEDIUM' THEN 3\n    WHEN 'LOW' THEN 4\n  END;",
+          "rawSql": "SELECT \n  risk_level,\n  COUNT(*) as count\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '7 days'\nGROUP BY risk_level\nORDER BY \n  CASE risk_level\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    WHEN 'MEDIUM' THEN 3\n    WHEN 'LOW' THEN 4\n  END;",
           "refId": "A"
         }
       ],
@@ -541,7 +541,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -665,12 +665,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  date_trunc('hour', decided_at) as time,\n  decision,\n  COUNT(*) as count\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY date_trunc('hour', decided_at), decision\nORDER BY time;",
+          "rawSql": "SELECT \n  date_trunc('hour', decided_at) as time,\n  decision,\n  COUNT(*) as count\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '7 days'\nGROUP BY date_trunc('hour', decided_at), decision\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -688,7 +688,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -777,12 +777,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  date_trunc('hour', assessed_at) as time,\n  AVG(overall_risk_score) as \"Average Risk Score\"\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY date_trunc('hour', assessed_at)\nORDER BY time;",
+          "rawSql": "SELECT \n  date_trunc('hour', assessed_at) as time,\n  AVG(overall_risk_score) as \"Average Risk Score\"\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '7 days'\nGROUP BY date_trunc('hour', assessed_at)\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -792,7 +792,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -881,12 +881,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  date_trunc('hour', decided_at) as time,\n  AVG(calibrated_confidence) as \"Average Confidence\"\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY date_trunc('hour', decided_at)\nORDER BY time;",
+          "rawSql": "SELECT \n  date_trunc('hour', decided_at) as time,\n  AVG(calibrated_confidence) as \"Average Confidence\"\nFROM autonomous_decision_log\nWHERE decided_at >= NOW() - INTERVAL '7 days'\nGROUP BY date_trunc('hour', decided_at)\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -896,7 +896,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -972,16 +972,16 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  r.risk_level,\n  d.decision,\n  COUNT(*) as count\nFROM incident_risk_assessment r\nJOIN autonomous_decision_log d ON r.incident_number = d.incident_number\nWHERE r.assessed_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY r.risk_level, d.decision\nORDER BY \n  CASE r.risk_level\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    WHEN 'MEDIUM' THEN 3\n    WHEN 'LOW' THEN 4\n  END;",
+          "rawSql": "SELECT \n  r.risk_level,\n  d.decision,\n  COUNT(*) as count\nFROM incident_risk_assessment r\nJOIN autonomous_decision_log d ON r.incident_number = d.incident_number\nWHERE r.assessed_at >= NOW() - INTERVAL '7 days'\nGROUP BY r.risk_level, d.decision\nORDER BY \n  CASE r.risk_level\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    WHEN 'MEDIUM' THEN 3\n    WHEN 'LOW' THEN 4\n  END;",
           "refId": "A"
         }
       ],
-      "title": "Decision Matrix Heatmap (Risk × Decision)",
+      "title": "Decision Matrix Heatmap (Risk \u00d7 Decision)",
       "transformations": [
         {
           "id": "groupingToMatrix",
@@ -992,12 +992,12 @@
           }
         }
       ],
-      "type": "timeseries"
+      "type": "table"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -1089,12 +1089,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  COUNT(*) as total_executions,\n  SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful,\n  SUM(CASE WHEN NOT success THEN 1 ELSE 0 END) as failed,\n  ROUND(SUM(CASE WHEN success THEN 1 ELSE 0 END)::numeric / COUNT(*)::numeric, 3) as success_rate,\n  ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - executed_at))), 2) as avg_duration_seconds\nFROM remediation_executions\nWHERE executed_at >= NOW() - INTERVAL '$__range_s seconds';",
+          "rawSql": "SELECT \n  COUNT(*) as total_executions,\n  SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful,\n  SUM(CASE WHEN NOT success THEN 1 ELSE 0 END) as failed,\n  ROUND(SUM(CASE WHEN success THEN 1 ELSE 0 END)::numeric / COUNT(*)::numeric, 3) as success_rate,\n  ROUND(AVG(resolution_time_seconds)::numeric, 2) as avg_duration_seconds\nFROM remediation_executions\nWHERE executed_at >= NOW() - INTERVAL '7 days';",
           "refId": "A"
         }
       ],
@@ -1104,7 +1104,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -1245,12 +1245,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  date_trunc('hour', assessed_at) as time,\n  AVG(device_criticality) as \"Device Criticality\",\n  AVG(blast_radius) as \"Blast Radius\",\n  AVG(time_sensitivity) as \"Time Sensitivity\",\n  AVG(change_complexity) as \"Change Complexity\"\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '$__range_s seconds'\nGROUP BY date_trunc('hour', assessed_at)\nORDER BY time;",
+          "rawSql": "SELECT \n  date_trunc('hour', assessed_at) as time,\n  AVG(blast_radius_score) as \"Blast Radius\",\n  AVG(time_sensitivity_score) as \"Time Sensitivity\",\n  AVG(change_complexity_score) as \"Change Complexity\"\nFROM incident_risk_assessment\nWHERE assessed_at >= NOW() - INTERVAL '7 days'\nGROUP BY date_trunc('hour', assessed_at)\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -1260,7 +1260,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_POSTGRES}"
+        "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
       },
       "fieldConfig": {
         "defaults": {
@@ -1468,12 +1468,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_POSTGRES}"
+            "uid": "f81dada7-3ae2-4555-a2d4-164e79f00198"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \n  i.incident_number,\n  i.primary_device,\n  i.incident_type,\n  r.risk_level,\n  ROUND(r.overall_risk_score::numeric, 3) as risk_score,\n  ROUND(d.calibrated_confidence::numeric, 3) as confidence,\n  d.decision,\n  d.reasoning,\n  d.decided_at\nFROM incidents i\nJOIN incident_risk_assessment r ON i.incident_number = r.incident_number\nJOIN autonomous_decision_log d ON i.incident_number = d.incident_number\nWHERE d.decided_at >= NOW() - INTERVAL '$__range_s seconds'\nORDER BY d.decided_at DESC\nLIMIT 100;",
+          "rawSql": "SELECT \n  i.incident_number,\n  i.primary_device,\n  i.incident_type,\n  r.risk_level,\n  ROUND(r.overall_risk_score::numeric, 3) as risk_score,\n  ROUND(d.calibrated_confidence::numeric, 3) as confidence,\n  d.decision,\n  d.decision_reasoning,\n  d.decided_at\nFROM incidents i\nJOIN incident_risk_assessment r ON i.incident_number = r.incident_number\nJOIN autonomous_decision_log d ON i.incident_number = d.incident_number\nWHERE d.decided_at >= NOW() - INTERVAL '7 days'\nORDER BY d.decided_at DESC\nLIMIT 100;",
           "refId": "A"
         }
       ],
@@ -1498,8 +1498,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Smart NOC - Safety Framework Dashboard",
-  "uid": "safety-framework",
+  "title": "Smart NOC - Safety Framework Dashboard v2",
+  "uid": "safety-framework-v2",
   "version": 0,
   "weekStart": ""
 }

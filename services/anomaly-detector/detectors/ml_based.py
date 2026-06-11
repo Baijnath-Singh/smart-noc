@@ -59,21 +59,31 @@ class MLBasedDetector:
         - Has error indicators
         """
         try:
+            # Helper function to normalize field values (handle both strings and lists)
+            def normalize_field(value, default=''):
+                """Convert list/array to string by taking first element"""
+                if isinstance(value, list):
+                    return str(value[0]) if value else default
+                return str(value) if value else default
+            
             # Severity mapping
             severity_map = {'INFO': 0, 'WARNING': 1, 'ERROR': 2, 'CRITICAL': 3}
-            severity = severity_map.get(log.get('severity', 'INFO').upper(), 0)
+            severity_str = normalize_field(log.get('severity', 'INFO'), 'INFO').upper()
+            severity = severity_map.get(severity_str, 0)
             
             # Event type hash (simple method)
-            event_type = log.get('event_type', '')
+            event_type = normalize_field(log.get('event_type', ''), '')
             event_hash = hash(event_type) % 1000  # Bounded hash
             
             # Criticality mapping
             criticality_map = {'low': 0, 'medium': 1, 'high': 2}
-            criticality = criticality_map.get(log.get('criticality', 'medium').lower(), 1)
+            criticality_str = normalize_field(log.get('criticality', 'medium'), 'medium').lower()
+            criticality = criticality_map.get(criticality_str, 1)
             
             # Device role mapping
             role_map = {'edge': 0, 'distribution': 1, 'core': 2}
-            device_role = role_map.get(log.get('device_role', 'edge').lower(), 0)
+            device_role_str = normalize_field(log.get('device_role', 'edge'), 'edge').lower()
+            device_role = role_map.get(device_role_str, 0)
             
             # Temporal features
             timestamp = datetime.utcnow()
@@ -81,7 +91,7 @@ class MLBasedDetector:
             day_of_week = timestamp.weekday()
             
             # Message analysis
-            message = log.get('message', '')
+            message = normalize_field(log.get('message', ''), '')
             message_length = len(message)
             has_error_keyword = int(any(kw in message.lower() for kw in ['error', 'fail', 'down', 'critical']))
             

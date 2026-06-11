@@ -64,14 +64,16 @@ services:
     image: docker.elastic.co/logstash/logstash:8.12.0
     container_name: smart-noc-logstash
     ports:
-      - "5000:5000"
-      - "9600:9600" # Monitoring API
+      - "5000:5000/tcp"  # TCP syslog input
+      - "5000:5000/udp"  # UDP syslog input (Extreme Networks switches)
+      - "9600:9600"      # Monitoring API
     environment:
-      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+      LS_JAVA_OPTS: "-Xmx2048m -Xms1024m"
       MONITORING_ENABLED: "false"
     volumes:
       - ./infrastructure/logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./infrastructure/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./infrastructure/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
     depends_on:
       kafka:
         condition: service_healthy
