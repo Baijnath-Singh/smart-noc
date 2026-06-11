@@ -148,6 +148,15 @@ class CorrelationService:
                     # Create generic time-based incident if no specific pattern matched
                     self._create_incident(group, 'UNKNOWN', 'TIME_BASED')
                     self.stats['correlations_found'] += 1
+                elif len(group) == 1:
+                    # Create incident from single high-severity anomaly
+                    anomaly = group[0]
+                    severity = anomaly.get('severity', 'MEDIUM').upper()
+                    if severity in ['HIGH', 'CRITICAL']:
+                        anomaly_type = anomaly.get('anomaly_type', 'UNKNOWN')
+                        self._create_incident(group, anomaly_type, 'SINGLE_HIGH_SEVERITY')
+                        self.stats['correlations_found'] += 1
+                        logger.info(f"Single high-severity anomaly incident created: {anomaly_type} ({severity})")
         
         except Exception as e:
             logger.error(f"Error checking correlations: {e}")

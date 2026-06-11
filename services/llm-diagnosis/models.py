@@ -51,6 +51,15 @@ class RemediationStep(BaseModel):
         description="Command to revert this change if needed"
     )
     
+    @field_validator('priority', mode='before')
+    @classmethod
+    def normalize_priority(cls, v):
+        """Normalize priority values - convert hyphens to underscores for LLM compatibility"""
+        if isinstance(v, str):
+            # Convert SHORT-TERM to SHORT_TERM, LONG-TERM to LONG_TERM
+            return v.replace('-', '_').upper()
+        return v
+    
     @field_validator('command', 'rollback_command')
     @classmethod
     def validate_command(cls, v: Optional[str]) -> Optional[str]:

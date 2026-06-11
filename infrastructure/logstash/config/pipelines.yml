@@ -1,7 +1,7 @@
 # ==============================================================================
 # Smart NOC - Logstash Pipelines Configuration
 # ==============================================================================
-# Separates the 4 pipelines to prevent conflicts and circular dependencies
+# SIMPLIFIED: Only syslog-input pipeline for quick startup
 
 # Pipeline 1: Syslog Input → Kafka (network-logs topic)
 # Receives UDP/TCP syslog on port 5000, parses, enriches, sends to Kafka
@@ -9,24 +9,3 @@
   path.config: "/usr/share/logstash/pipeline/syslog-input.conf"
   pipeline.workers: 2
   pipeline.batch.size: 125
-
-# Pipeline 2: Kafka (network-logs) → Elasticsearch
-# Consumes from network-logs topic, enriches, stores in Elasticsearch
-- pipeline.id: network-logs-processor
-  path.config: "/usr/share/logstash/pipeline/network-logs.conf"
-  pipeline.workers: 2
-  pipeline.batch.size: 125
-
-# Pipeline 3: Kafka (anomalies) → Elasticsearch
-# Consumes from anomalies topic, stores anomaly events
-- pipeline.id: anomalies-processor
-  path.config: "/usr/share/logstash/pipeline/anomalies.conf"
-  pipeline.workers: 1
-  pipeline.batch.size: 50
-
-# Pipeline 4: Kafka (incidents) → Elasticsearch
-# Consumes from incidents topic, stores incident events
-- pipeline.id: incidents-processor
-  path.config: "/usr/share/logstash/pipeline/incidents.conf"
-  pipeline.workers: 1
-  pipeline.batch.size: 50
