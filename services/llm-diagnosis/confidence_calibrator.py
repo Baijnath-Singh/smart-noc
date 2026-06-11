@@ -465,3 +465,67 @@ class ConfidenceCalibrator:
         except Exception as e:
             logger.error(f"Failed to get calibration data: {str(e)}", exc_info=True)
             return []
+    
+    def get_calibration_stats(self, incident_type: Optional[str] = None) -> Optional[Dict]:
+        """
+        Get calibration statistics for historical accuracy feedback.
+        Used to inform LLM about its past performance.
+        
+        Args:
+            incident_type: Specific incident type (None for all types)
+            
+        Returns:
+            Dict with:
+            - total_samples: Total feedback records
+            - confidence_buckets: List of {confidence, accuracy, count, gap}
+            - overall_overconfidence: Average overconfidence gap
+            - common_mistakes: List of common error patterns
+        """
+        try:
+            # Get data by bucket
+            bucket_data = self.get_calibration_data_by_bucket(incident_type)
+            
+            if not bucket_data:
+                return None
+            
+            # Calculate stats
+            total_samples = sum(d.total_samples for d in bucket_data)
+            
+            if total_samples < 5:
+                return {
+                    'total_samples': total_samples,
+                    'insufficient_data': True
+                }
+            
+            # Format bucket data
+            confidence_buckets = [
+                {
+                    'confidence': d.avg_reported_confidence,
+                    'accuracy': d.actual_accuracy,
+                    'count': d.total_samples,
+                    'gap': d.calibration_error
+                }
+                for d in bucket_data
+            ]
+            
+            # Calculate overall overconfidence
+            overall_gap = sum(d['gap'] * d['count'] for d in confidence_buckets) / total_samples
+            
+            # Get common mistakes (high overconfidence cases)
+            common_mistakes = []
+            for bucket in confidence_buckets:
+                if bucket['gap'] > 0.2 and bucket['count'] >= 3:
+                    common_mistakes.append({
+                        'description': f"At {bucket['confidence']:.0%} confidence, only {bucket['accuracy']:.0%} accurate ({bucket['count']} cases)"
+                    })
+            
+            return {
+                'total_samples': total_samples,
+                'confidence_buckets': confidence_buckets,
+                'overall_overconfidence': overall_gap,
+                'common_mistakes': common_mistakes
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get calibration stats: {str(e)}", exc_info=True)
+            return None

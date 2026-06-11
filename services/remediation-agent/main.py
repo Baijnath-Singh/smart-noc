@@ -16,6 +16,7 @@ import sys
 
 from config import settings
 from workflow import RemediationAgent
+from safety_integration import SafetyIntegration
 
 # Phase 2: Vector Service Integration for Remediation Lessons
 try:
@@ -56,6 +57,11 @@ class RemediationService:
         
         # Database connection
         self.db_conn = self._init_database()
+        
+        # Initialize Safety Framework
+        database_url = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+        self.safety = SafetyIntegration(database_url)
+        logger.info("✅ Safety Framework integrated")
         
         # Phase 2: Initialize Vector Service for ChromaDB
         self.vector_kb = None
@@ -127,25 +133,39 @@ class RemediationService:
             logger.error(f"Failed to connect to database: {e}")
             return None
     
-    def _should_auto_execute(self, diagnosis: dict) -> bool:
-        """Determine if we should auto-execute or require approval"""
+    def _assess_safety(self, incident: dict, diagnosis: dict) -> dict:
+        """
+        Use Safety Framework to assess if remediation can proceed
         
-        if not settings.ENABLE_AUTO_EXECUTION:
-            return False
+        Args:
+            incident: Incident details
+            diagnosis: LLM diagnosis with confidence
         
-        # Check severity
-        severity = diagnosis.get('severity', 'MEDIUM')
-        if severity in ['HIGH', 'CRITICAL'] and settings.REQUIRE_APPROVAL_ABOVE_SEVERITY == severity:
-            logger.info(f"Severity {severity} requires approval")
-            return False
+        Returns:
+            Safety assessment with risk, decision, and proceed flag
+        """
+        # Get calibrated confidence from diagnosis
+        # If not present, use raw confidence (backwards compatibility)
+        calibrated_confidence = diagnosis.get('calibrated_confidence', 
+                                             diagnosis.get('confidence', 0.0))
         
-        # Check confidence
-        confidence = diagnosis.get('confidence', 0.0)
-        if confidence < 0.6:
-            logger.info(f"Confidence {confidence} too low for auto-execution")
-            return False
+        # Build incident dict for safety framework
+        safety_incident = {
+            'incident_number': incident.get('incident_number'),
+            'primary_device': incident.get('primary_device', incident.get('device', 'unknown')),
+            'incident_type': incident.get('incident_type', 'UNKNOWN'),
+            'affected_device_count': len(incident.get('affected_devices', [])) or 1,
+            'severity': incident.get('severity', 'MEDIUM')
+        }
         
-        return True
+        # Perform safety assessment
+        safety_result = self.safety.assess_safety(
+            incident=safety_incident,
+            diagnosis=diagnosis,
+            calibrated_confidence=calibrated_confidence
+        )
+        
+        return safety_result
     
     def _get_incident_id(self, incident_number: int) -> str:
         """Get the incident UUID from the database using incident_number"""
@@ -317,10 +337,47 @@ Lesson: {lessons}
         logger.info("=" * 80)
         
         try:
-            # Check if we should auto-execute
-            if not self._should_auto_execute(diagnosis):
-                logger.warning("⏸️  Auto-execution disabled, would require approval")
-                return True  # Commit offset anyway
+            # Perform safety assessment using Safety Framework
+            safety_result = self._assess_safety(incident, diagnosis)
+            
+            logger.info(
+                f"🛡️  Safety Assessment: Risk={safety_result['risk_level']} "
+                f"({safety_result['risk_score']:.2f}), "
+                f"Decision={safety_result['decision']}"
+            )
+            logger.info(f"💭 Reasoning: {safety_result['decision_reasoning']}")
+            
+            # Handle based on decision
+            if safety_result['must_escalate']:
+                logger.warning("🚫 Safety Framework: Manual intervention required")
+                self.stats['escalated'] += 1
+                self.stats['processed'] += 1
+                return True  # Commit offset
+            
+            if safety_result['requires_approval']:
+                logger.warning("⏸️  Safety Framework: Approval required")
+                # Request approval (in production, wait for response)
+                approval_id = self.safety.request_approval(
+                    incident_number=incident['incident_number'],
+                    risk_level=safety_result['risk_level'],
+                    calibrated_confidence=diagnosis.get('calibrated_confidence', 
+                                                       diagnosis.get('confidence', 0.0)),
+                    timeout_minutes=5
+                )
+                logger.info(f"📋 Approval requested: ID={approval_id}")
+                # For now, don't proceed until approval workflow is fully implemented
+                self.stats['escalated'] += 1
+                self.stats['processed'] += 1
+                return True  # Commit offset
+            
+            if not safety_result['safe_to_proceed']:
+                logger.warning("⚠️  Safety check failed, cannot proceed")
+                self.stats['escalated'] += 1
+                self.stats['processed'] += 1
+                return True  # Commit offset
+            
+            # Safety checks passed, proceed with remediation
+            logger.success("✅ Safety checks passed, proceeding with remediation")
             
             # Run autonomous remediation
             logger.info("🚀 Starting autonomous remediation...")

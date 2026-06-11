@@ -21,6 +21,7 @@ from llm_client import LLMClient
 from context_builder import ContextBuilder
 from confidence_calibrator import ConfidenceCalibrator
 from prompts.system_prompts import SYSTEM_PROMPT, get_prompt_template
+from prompts.improved_system_prompt import get_improved_prompt_with_feedback
 
 
 class DiagnosisService:
@@ -364,6 +365,17 @@ class DiagnosisService:
         """Generate diagnosis using LLM"""
         incident_type = incident.get('incident_type', 'UNKNOWN')
         
+        # Get improved system prompt with historical accuracy feedback
+        try:
+            system_prompt = get_improved_prompt_with_feedback(
+                calibrator=self.calibrator,
+                incident_type=incident_type
+            )
+            logger.debug(f"Using improved prompt with historical feedback for {incident_type}")
+        except Exception as e:
+            logger.warning(f"Failed to get improved prompt, falling back to standard: {e}")
+            system_prompt = SYSTEM_PROMPT
+        
         # Get prompt template for incident type
         user_prompt_template = get_prompt_template(incident_type)
         
@@ -400,9 +412,9 @@ class DiagnosisService:
             redundancy_status='N/A',
         )
         
-        # Generate diagnosis
+        # Generate diagnosis with improved prompt
         try:
-            diagnosis, metadata = self.llm_client.generate_diagnosis(SYSTEM_PROMPT, user_message)
+            diagnosis, metadata = self.llm_client.generate_diagnosis(system_prompt, user_message)
             return (diagnosis, metadata)
         except Exception as e:
             logger.error(f"LLM generation error: {e}")
@@ -447,8 +459,26 @@ class DiagnosisService:
                         'estimated_resolution_minutes': diagnosis.get('estimated_resolution_minutes'),
                         'raw_confidence': diagnosis.get('raw_confidence', 0.0),
                         'calibrated_confidence': diagnosis.get('calibrated_confidence', 0.0),
-                        'calibration_method': diagnosis.get('calibration_method', 'uncalibrated')
+                        'calibration_method': diagnosis.get('calibration_method', 'uncalibrated'),
+                        'llm_diagnosis': {
+                            'raw_confidence': diagnosis.get('raw_confidence', 0.0),
+                            'calibrated_confidence': diagnosis.get('calibrated_confidence', 0.0),
+                            'calibration_method': diagnosis.get('calibration_method', 'uncalibrated')
+                        }
                     }
+                    
+                    # Extract evidence quality if provided
+                    evidence_quality = diagnosis.get('evidence_quality')
+                    evidence_direct = None
+                    evidence_indirect = None
+                    evidence_missing = None
+                    alternatives = None
+                    
+                    if evidence_quality:
+                        evidence_direct = evidence_quality.get('direct_evidence_count')
+                        evidence_indirect = evidence_quality.get('indirect_evidence_count')
+                        evidence_missing = json.dumps(evidence_quality.get('missing_critical_data', []))
+                        alternatives = json.dumps(evidence_quality.get('alternative_causes_considered', []))
                     
                     session.execute(
                         text("""
@@ -456,6 +486,11 @@ class DiagnosisService:
                             SET root_cause = :root_cause,
                                 remediation_plan = :remediation_plan,
                                 incident_metadata = COALESCE(incident_metadata, '{}'::jsonb) || CAST(:metadata AS jsonb),
+                                confidence_reasoning = :confidence_reasoning,
+                                evidence_direct_count = :evidence_direct,
+                                evidence_indirect_count = :evidence_indirect,
+                                evidence_missing = CAST(:evidence_missing AS jsonb),
+                                alternatives_considered = CAST(:alternatives AS jsonb),
                                 updated_at = NOW()
                             WHERE id = CAST(:incident_id AS uuid)
                         """),
@@ -463,7 +498,12 @@ class DiagnosisService:
                             'incident_id': incident_id,
                             'root_cause': diagnosis.get('root_cause', ''),
                             'remediation_plan': remediation_json,
-                            'metadata': json.dumps(incident_metadata)
+                            'metadata': json.dumps(incident_metadata),
+                            'confidence_reasoning': diagnosis.get('confidence_reasoning'),
+                            'evidence_direct': evidence_direct,
+                            'evidence_indirect': evidence_indirect,
+                            'evidence_missing': evidence_missing,
+                            'alternatives': alternatives
                         }
                     )
                     logger.debug("✓ Incidents table updated (with reasoning in metadata)")

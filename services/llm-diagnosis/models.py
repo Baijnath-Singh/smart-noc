@@ -89,6 +89,26 @@ class IncidentSeverity(str, Enum):
     CRITICAL = "CRITICAL"
 
 
+class EvidenceQuality(BaseModel):
+    """Quality assessment of evidence for diagnosis (helps LLM self-evaluate)"""
+    direct_evidence_count: int = Field(
+        ge=0,
+        description="Number of direct causal evidence pieces"
+    )
+    indirect_evidence_count: int = Field(
+        ge=0,
+        description="Number of indirect/correlational evidence pieces"
+    )
+    missing_critical_data: List[str] = Field(
+        default=[],
+        description="List of critical missing data that would improve confidence"
+    )
+    alternative_causes_considered: List[str] = Field(
+        default=[],
+        description="Alternative root causes that were considered and ruled out"
+    )
+
+
 class DiagnosisResponse(BaseModel):
     """
     Complete LLM diagnosis response with validation
@@ -99,6 +119,7 @@ class DiagnosisResponse(BaseModel):
     - Value ranges are valid (confidence 0.0-1.0)
     - Remediation steps follow structure
     - No missing or malformed data
+    - NEW: Confidence reasoning (explains why that confidence score)
     """
     root_cause: str = Field(
         min_length=20,
@@ -114,6 +135,16 @@ class DiagnosisResponse(BaseModel):
         min_length=50,
         max_length=2000,
         description="Step-by-step analysis explaining the diagnosis"
+    )
+    confidence_reasoning: Optional[str] = Field(
+        default=None,
+        min_length=50,
+        max_length=1000,
+        description="Explanation of why this confidence score was assigned (NEW: helps prevent overconfidence)"
+    )
+    evidence_quality: Optional[EvidenceQuality] = Field(
+        default=None,
+        description="Assessment of evidence strength (NEW: quantifies confidence basis)"
     )
     remediation_plan: List[RemediationStep] = Field(
         min_length=1,
@@ -135,10 +166,10 @@ class DiagnosisResponse(BaseModel):
         description="Total estimated time to resolve (1-480 minutes)"
     )
     
-    @field_validator('root_cause', 'reasoning')
+    @field_validator('root_cause', 'reasoning', 'confidence_reasoning')
     @classmethod
     def validate_technical_content(cls, v: str, info) -> str:
-        """Ensure root_cause and reasoning are meaningful"""
+        """Ensure root_cause, reasoning, and confidence_reasoning are meaningful"""
         # Check for generic/placeholder responses
         generic_phrases = [
             'unknown issue',
@@ -168,15 +199,48 @@ class DiagnosisResponse(BaseModel):
                 f"High confidence ({self.confidence}) requires detailed reasoning (>100 chars)"
             )
         
+        # High confidence should have detailed confidence_reasoning (if provided)
+        if self.confidence >= 0.7 and self.confidence_reasoning and len(self.confidence_reasoning) < 80:
+            raise ValueError(
+                f"Confidence {self.confidence:.2f} requires detailed confidence reasoning (>80 chars)"
+            )
+        
+        # Validate confidence reasoning contains key markers (if provided)
+        if self.confidence_reasoning:
+            conf_lower = self.confidence_reasoning.lower()
+            if self.confidence >= 0.7:
+                # Should mention evidence
+                has_evidence_mention = any(word in conf_lower for word in ['evidence', 'support', 'confirm', 'indicate'])
+                if not has_evidence_mention:
+                    raise ValueError(
+                        "High confidence reasoning must mention supporting evidence"
+                    )
+        
+        # If evidence_quality provided, validate it matches confidence
+        if self.evidence_quality:
+            total_evidence = (
+                self.evidence_quality.direct_evidence_count + 
+                self.evidence_quality.indirect_evidence_count
+            )
+            
+            # High confidence should have multiple evidence points
+            if self.confidence >= 0.85 and total_evidence < 2:
+                raise ValueError(
+                    f"Confidence {self.confidence:.2f} too high with only {total_evidence} evidence points"
+                )
+            
+            # High confidence should have direct evidence
+            if self.confidence >= 0.85 and self.evidence_quality.direct_evidence_count == 0:
+                raise ValueError(
+                    f"Confidence {self.confidence:.2f} requires at least 1 direct evidence"
+                )
+        
         # Validate step numbering is sequential
         steps = [step.step for step in self.remediation_plan]
         if steps != list(range(1, len(steps) + 1)):
             raise ValueError(
                 f"Remediation steps must be sequential starting from 1. Got: {steps}"
             )
-        
-        # At least one IMMEDIATE action for CRITICAL/HIGH severity
-        # (Note: We don't have severity in response, so skip this check)
         
         # Calculate total duration if not provided
         if self.estimated_resolution_minutes is None:
@@ -191,6 +255,13 @@ class DiagnosisResponse(BaseModel):
                 "root_cause": "BGP neighbor session down due to MTU mismatch on WAN interface",
                 "confidence": 0.85,
                 "reasoning": "Analysis shows: 1) BGP session dropped after interface flap, 2) Large packets being fragmented, 3) MTU mismatch detected between peers",
+                "confidence_reasoning": "Confidence: 0.85 because:\n✓ Direct evidence: MTU mismatch confirmed (9000 vs 1500)\n✓ Timeline correlation: fragmentation preceded BGP drop\n✓ Pattern match: identical to past incident #42\n✗ Missing: packet capture for absolute confirmation\nConclusion: High confidence but not 0.90+ due to missing packet capture",
+                "evidence_quality": {
+                    "direct_evidence_count": 2,
+                    "indirect_evidence_count": 1,
+                    "missing_critical_data": ["packet capture", "BGP debug logs"],
+                    "alternative_causes_considered": ["Authentication failure", "Software bug", "Network congestion"]
+                },
                 "remediation_plan": [
                     {
                         "priority": "IMMEDIATE",
