@@ -26,6 +26,13 @@ class RuleBasedDetector:
         self.window_minutes = config['detection']['window_size_minutes']
         logger.info("Rule-based detector initialized")
     
+    def _enrich_with_device_fields(self, anomaly: Dict, log: Dict) -> Dict:
+        """Add device enrichment fields from log to anomaly if present"""
+        for field in ['device_vendor', 'device_family', 'device_model', 'device_os_version', 'device_cli_syntax', 'device_role']:
+            if field in log and log[field]:
+                anomaly[field] = log[field]
+        return anomaly
+    
     def detect_interface_flapping(self, log: Dict) -> Optional[Dict]:
         """
         Detect interface flapping: rapid interface up/down transitions
@@ -81,7 +88,7 @@ class RuleBasedDetector:
                 f"({event_count} events, criticality: {criticality}, threshold: {threshold})"
             )
             
-            return {
+            anomaly = {
                 'anomaly_type': 'INTERFACE_FLAPPING',
                 'severity': self.config['detection']['interface_flapping']['severity'],
                 'device_id': device_id,
@@ -94,6 +101,7 @@ class RuleBasedDetector:
                 'confidence': 1.0,
                 'details': f"Interface changed state {event_count} times in {self.window_minutes} minutes (criticality: {criticality})"
             }
+            return self._enrich_with_device_fields(anomaly, log)
         
         return None
     
@@ -148,7 +156,7 @@ class RuleBasedDetector:
             
             logger.warning(f"Auth brute force detected: {source_ip} → {device_id} ({failure_count} attempts)")
             
-            return {
+            anomaly = {
                 'anomaly_type': 'AUTH_BRUTE_FORCE',
                 'severity': self.config['detection']['auth_brute_force']['severity'],
                 'device_id': device_id,
@@ -160,6 +168,7 @@ class RuleBasedDetector:
                 'confidence': 1.0,
                 'details': f"Brute force attack from {source_ip}: {failure_count} failed attempts targeting users {', '.join(usernames[:3])}"
             }
+            return self._enrich_with_device_fields(anomaly, log)
         
         return None
     
@@ -214,7 +223,7 @@ class RuleBasedDetector:
             
             logger.warning(f"Sustained high CPU detected: {device_id} ({cpu_percent}% for {elapsed_minutes:.1f} min)")
             
-            return {
+            anomaly = {
                 'anomaly_type': 'HIGH_CPU_SUSTAINED',
                 'severity': self.config['detection']['high_cpu']['severity'],
                 'device_id': device_id,
@@ -224,6 +233,7 @@ class RuleBasedDetector:
                 'confidence': 1.0,
                 'details': f"CPU sustained at {cpu_percent}% for {elapsed_minutes:.1f} minutes (threshold: {threshold_percent}%)"
             }
+            return self._enrich_with_device_fields(anomaly, log)
         
         return None
     
@@ -266,7 +276,7 @@ class RuleBasedDetector:
             
             logger.warning(f"BGP instability detected: {device_id} neighbor {neighbor} ({event_count} changes)")
             
-            return {
+            anomaly = {
                 'anomaly_type': 'BGP_INSTABILITY',
                 'severity': self.config['detection']['bgp_instability']['severity'],
                 'device_id': device_id,
@@ -277,6 +287,7 @@ class RuleBasedDetector:
                 'confidence': 1.0,
                 'details': f"BGP session flapping: {event_count} state changes in {self.window_minutes} minutes"
             }
+            return self._enrich_with_device_fields(anomaly, log)
         
         return None
     
@@ -298,7 +309,7 @@ class RuleBasedDetector:
         
         logger.warning(f"VLAN mismatch detected: {device_id} - {log.get('message', 'No message')[:100]}")
         
-        return {
+        anomaly = {
             'anomaly_type': event_type,
             'device_id': device_id,
             'severity': 'MEDIUM',
@@ -308,6 +319,7 @@ class RuleBasedDetector:
             'message': f"VLAN configuration mismatch detected on {device_id}",
             'details': log.get('message', '')
         }
+        return self._enrich_with_device_fields(anomaly, log)
     
     def detect(self, log: Dict) -> List[Dict]:
         """

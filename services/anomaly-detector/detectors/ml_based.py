@@ -211,7 +211,8 @@ class MLBasedDetector:
                 
                 logger.warning(f"ML anomaly detected: {log.get('device_id')} - {log.get('event_type')} (confidence: {confidence:.2f})")
                 
-                return {
+                # Create anomaly with device enrichment fields if available
+                anomaly = {
                     'anomaly_type': 'ML_DETECTED_ANOMALY',
                     'severity': 'MEDIUM' if confidence > 0.7 else 'LOW',
                     'device_id': device_id,
@@ -228,6 +229,13 @@ class MLBasedDetector:
                         'time_context': f"{features['hour_of_day']}:00 on day {features['day_of_week']}"
                     }
                 }
+                
+                # Add device enrichment fields if present
+                for field in ['device_vendor', 'device_family', 'device_model', 'device_os_version', 'device_cli_syntax', 'device_role']:
+                    if field in log and log[field]:
+                        anomaly[field] = log[field]
+                
+                return anomaly
             
             return None
             

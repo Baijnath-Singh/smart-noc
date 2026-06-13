@@ -79,6 +79,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      device-enrichment:
+        condition: service_healthy
     networks:
       - smart-noc-network
 
@@ -169,6 +171,40 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - smart-noc-network
+
+  # ============================================================================
+  # DEVICE ENRICHMENT SERVICE (HTTP API for Device Metadata)
+  # ============================================================================
+  device-enrichment:
+    build:
+      context: ./services/device-enrichment
+      dockerfile: Dockerfile
+    container_name: smart-noc-device-enrichment
+    ports:
+      - "8081:8080"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: smart_noc
+      POSTGRES_USER: noc_admin
+      POSTGRES_PASSWORD: noc_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_TTL: 3600
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - smart-noc-network
 
