@@ -684,11 +684,30 @@ Output:
                 event_type_for_search = incident_type if incident_type and incident_type != 'UNKNOWN' else None
             
             # Enhanced vendor and platform detection
+            # PRIORITY 1: Use device info from enriched log messages (from device inventory)
             vendor = "generic"
             platform = None
+            device_model = None
+            device_os = None
+            cli_syntax = None
             
-            if device_id:
+            # Check if anomalies have device info from database enrichment
+            if anomalies:
+                first_anomaly = anomalies[0]
+                if 'device_vendor' in first_anomaly:
+                    vendor_full = first_anomaly.get('device_vendor', '').lower()
+                    vendor = vendor_full.split()[0] if vendor_full else "generic"  # "Extreme Networks" -> "extreme"
+                    platform = first_anomaly.get('device_family', '').lower()
+                    device_model = first_anomaly.get('device_model')
+                    device_os = first_anomaly.get('device_os_version')
+                    cli_syntax = first_anomaly.get('device_cli_syntax', '').upper()
+                    logger.info(f"Using device inventory data - Vendor: {vendor}, Platform: {platform}, "
+                               f"Model: {device_model}, OS: {device_os}, CLI: {cli_syntax}")
+            
+            # PRIORITY 2: Fallback to heuristic detection from device_id/hostname
+            if vendor == "generic" and device_id:
                 device_lower = device_id.lower()
+                logger.info(f"Device inventory not found, using heuristic detection for: {device_id}")
                 
                 # Extreme Networks detection
                 if any(x in device_lower for x in ["exos", "extreme", "summit", "x460", "x670", "x440"]):
@@ -716,7 +735,7 @@ Output:
                     vendor = "hp"
                     platform = "aruba"
             
-            logger.info(f"Detected vendor: {vendor}, platform: {platform} from device: {device_id}")
+            logger.info(f"Final device context - Vendor: {vendor}, Platform: {platform} from device: {device_id}")
             
             # Search for relevant KB articles with enhanced multi-query search
             # Try with filters first, if no results, retry without filters for broader semantic match
