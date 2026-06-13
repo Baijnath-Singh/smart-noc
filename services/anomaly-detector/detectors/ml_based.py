@@ -231,9 +231,17 @@ class MLBasedDetector:
                 }
                 
                 # Add device enrichment fields if present
+                enriched_count = 0
                 for field in ['device_vendor', 'device_family', 'device_model', 'device_os_version', 'device_cli_syntax', 'device_role']:
                     if field in log and log[field]:
                         anomaly[field] = log[field]
+                        enriched_count += 1
+                
+                # Debug logging to track enrichment
+                if enriched_count > 0:
+                    logger.debug(f"✓ ML anomaly enriched with {enriched_count} device fields (vendor={log.get('device_vendor')}, cli={log.get('device_cli_syntax')})")
+                else:
+                    logger.warning(f"⚠ ML anomaly: No enrichment fields found in log for device {log.get('device_id')}")
                 
                 return anomaly
             

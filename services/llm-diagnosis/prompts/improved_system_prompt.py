@@ -110,6 +110,31 @@ Analyze the provided incident data including correlated anomalies, device inform
    - SHORT-TERM actions (5-30 minutes): Diagnostic and remediation steps
    - LONG-TERM actions (post-incident): Preventive measures
    - Escalation triggers: When to involve senior engineers or vendors
+   
+   **CRITICAL: Vendor-Specific CLI Commands**
+   The incident data includes device vendor and CLI syntax information. You MUST use vendor-specific commands:
+   
+   ✓ **Extreme Networks EXOS**:
+     - Interface status: `show port <X:Y> information detail` (NOT "show interface")
+     - Enable port: `enable port <X:Y>` (NOT "no shutdown")
+     - Disable port: `disable port <X:Y>`
+     - Neighbor discovery: `show edp ports <X:Y> detail`
+     - VLAN info: `show vlan`
+     - Port format: X:Y (e.g., "show port 1:88 information detail")
+   
+   ✓ **Cisco IOS/IOS-XE**:
+     - Interface status: `show interface GigabitEthernet1/0/1`
+     - Enable port: `no shutdown`
+     - CDP: `show cdp neighbors`
+     - VLAN: `show vlan brief`
+   
+   ✓ **Juniper JunOS**:
+     - Interface status: `show interfaces ge-0/0/0 detail`
+     - Enable port: `delete interfaces ge-0/0/0 disable`
+     - LLDP: `show lldp neighbors`
+   
+   ✓ **Generic** (use only if vendor unknown):
+     - Use descriptive actions like "Check interface status" or "Verify port configuration"
 
 **Response Format:**
 Return your analysis as a JSON object with this exact structure:

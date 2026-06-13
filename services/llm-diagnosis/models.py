@@ -67,12 +67,34 @@ class RemediationStep(BaseModel):
         if v is None:
             return v
         
-        # Check for dangerous commands (for autonomous execution safety)
-        dangerous_keywords = ['rm ', 'delete', 'format', 'erase', 'write erase']
         v_lower = v.lower()
-        for keyword in dangerous_keywords:
-            if keyword in v_lower:
-                raise ValueError(f"Dangerous command detected: '{keyword}' not allowed")
+        
+        # Allow read-only commands that contain "format" (e.g., "show port X:Y information detail" on EXOS)
+        # These are safe display commands
+        safe_command_prefixes = ['show ', 'display ', 'get ', 'list ', 'view ']
+        is_safe_readonly = any(v_lower.startswith(prefix) for prefix in safe_command_prefixes)
+        
+        # Check for dangerous commands (for autonomous execution safety)
+        # Only block destructive operations, not read-only "show" commands
+        dangerous_patterns = [
+            'rm ',
+            'delete ',
+            'erase',
+            'write erase',
+            'reload',
+            'reboot',
+            'shutdown',
+        ]
+        
+        # Block standalone "format" command but allow "information detail" etc
+        if 'format' in v_lower and not is_safe_readonly:
+            # Only block if "format" appears as a standalone operation
+            if 'format ' in v_lower or v_lower.endswith('format'):
+                raise ValueError(f"Dangerous command detected: 'format' not allowed")
+        
+        for pattern in dangerous_patterns:
+            if pattern in v_lower and not is_safe_readonly:
+                raise ValueError(f"Dangerous command detected: '{pattern}' not allowed")
         
         return v
     

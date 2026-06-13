@@ -66,7 +66,30 @@ class ContextBuilder:
             # Week 2: Vector search results
             'vector_similar_incidents': None,
             'vector_kb_articles': None,
+            # Device enrichment data for vendor-specific commands
+            'device_vendor': None,
+            'device_platform': None,
+            'device_cli_syntax': None,
+            'device_model': None,
         }
+        
+        # Extract device enrichment data from first anomaly
+        if context['anomalies']:
+            first_anomaly = context['anomalies'][0]
+            anomaly_data = first_anomaly.get('anomaly_data', {})
+            
+            # Try multiple locations for enrichment data
+            if 'device_vendor' in anomaly_data:
+                context['device_vendor'] = anomaly_data.get('device_vendor')
+                context['device_platform'] = anomaly_data.get('device_family')
+                context['device_cli_syntax'] = anomaly_data.get('device_cli_syntax')
+                context['device_model'] = anomaly_data.get('device_model')
+            elif 'source_log' in anomaly_data and 'device_vendor' in anomaly_data['source_log']:
+                source_log = anomaly_data['source_log']
+                context['device_vendor'] = source_log.get('device_vendor')
+                context['device_platform'] = source_log.get('device_family')
+                context['device_cli_syntax'] = source_log.get('device_cli_syntax')
+                context['device_model'] = source_log.get('device_model')
         
         # Build anomaly summary
         if context['anomalies']:
@@ -694,14 +717,38 @@ Output:
             # Check if anomalies have device info from database enrichment
             if anomalies:
                 first_anomaly = anomalies[0]
-                if 'device_vendor' in first_anomaly:
+                anomaly_data = first_anomaly.get('anomaly_data', {})
+                
+                # Try to get enrichment from top-level anomaly_data first
+                if 'device_vendor' in anomaly_data:
+                    vendor_full = anomaly_data.get('device_vendor', '').lower()
+                    vendor = vendor_full.split()[0] if vendor_full else "generic"
+                    platform = anomaly_data.get('device_family', '').lower()
+                    device_model = anomaly_data.get('device_model')
+                    device_os = anomaly_data.get('device_os_version')
+                    cli_syntax = anomaly_data.get('device_cli_syntax', '').upper()
+                    logger.info(f"Using device inventory data (top-level) - Vendor: {vendor}, Platform: {platform}, "
+                               f"Model: {device_model}, OS: {device_os}, CLI: {cli_syntax}")
+                # Fallback: check source_log nested structure
+                elif 'source_log' in anomaly_data and 'device_vendor' in anomaly_data['source_log']:
+                    source_log = anomaly_data['source_log']
+                    vendor_full = source_log.get('device_vendor', '').lower()
+                    vendor = vendor_full.split()[0] if vendor_full else "generic"
+                    platform = source_log.get('device_family', '').lower()
+                    device_model = source_log.get('device_model')
+                    device_os = source_log.get('device_os_version')
+                    cli_syntax = source_log.get('device_cli_syntax', '').upper()
+                    logger.info(f"Using device inventory data (source_log) - Vendor: {vendor}, Platform: {platform}, "
+                               f"Model: {device_model}, OS: {device_os}, CLI: {cli_syntax}")
+                # Last resort: check direct anomaly fields (old format)
+                elif 'device_vendor' in first_anomaly:
                     vendor_full = first_anomaly.get('device_vendor', '').lower()
-                    vendor = vendor_full.split()[0] if vendor_full else "generic"  # "Extreme Networks" -> "extreme"
+                    vendor = vendor_full.split()[0] if vendor_full else "generic"
                     platform = first_anomaly.get('device_family', '').lower()
                     device_model = first_anomaly.get('device_model')
                     device_os = first_anomaly.get('device_os_version')
                     cli_syntax = first_anomaly.get('device_cli_syntax', '').upper()
-                    logger.info(f"Using device inventory data - Vendor: {vendor}, Platform: {platform}, "
+                    logger.info(f"Using device inventory data (direct) - Vendor: {vendor}, Platform: {platform}, "
                                f"Model: {device_model}, OS: {device_os}, CLI: {cli_syntax}")
             
             # PRIORITY 2: Fallback to heuristic detection from device_id/hostname

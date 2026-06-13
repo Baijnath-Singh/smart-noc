@@ -400,6 +400,11 @@ class DiagnosisService:
             # Week 2: Vector search results from semantic similarity
             vector_similar_incidents=context.get('vector_similar_incidents', ''),
             vector_kb_articles=context.get('vector_kb_articles', ''),
+            # Device enrichment for vendor-specific commands
+            device_vendor=context.get('device_vendor', 'Unknown'),
+            device_platform=context.get('device_platform', 'Unknown'),
+            device_cli_syntax=context.get('device_cli_syntax', 'Unknown'),
+            device_model=context.get('device_model', 'Unknown'),
             # Additional fields for specific templates
             primary_anomaly_type=incident.get('primary_anomaly_type', 'N/A'),
             duration_minutes=(incident.get('duration_seconds', 0) / 60) if incident.get('duration_seconds') else 'N/A',

@@ -28,9 +28,18 @@ class RuleBasedDetector:
     
     def _enrich_with_device_fields(self, anomaly: Dict, log: Dict) -> Dict:
         """Add device enrichment fields from log to anomaly if present"""
+        enriched_count = 0
         for field in ['device_vendor', 'device_family', 'device_model', 'device_os_version', 'device_cli_syntax', 'device_role']:
             if field in log and log[field]:
                 anomaly[field] = log[field]
+                enriched_count += 1
+        
+        # Debug logging to track enrichment
+        if enriched_count > 0:
+            logger.debug(f"✓ Enriched anomaly with {enriched_count} device fields (vendor={log.get('device_vendor')}, cli={log.get('device_cli_syntax')})")
+        else:
+            logger.warning(f"⚠ No enrichment fields found in log for device {log.get('device_id')} - available keys: {list(log.keys())[:10]}")
+        
         return anomaly
     
     def detect_interface_flapping(self, log: Dict) -> Optional[Dict]:

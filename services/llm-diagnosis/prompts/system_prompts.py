@@ -219,6 +219,14 @@ CONNECTIVITY_ISSUE_PROMPT_TEMPLATE = """Analyze this CONNECTIVITY_ISSUE incident
 - Severity: {severity}
 - Impact Score: {impact_score}
 
+**Device Information:**
+- Vendor: {device_vendor}
+- Platform/OS: {device_platform}
+- CLI Syntax: {device_cli_syntax}
+- Model: {device_model}
+
+**IMPORTANT**: Use vendor-specific CLI commands in your remediation plan based on the CLI Syntax above. See system prompt for vendor command reference.
+
 **Connectivity Events:**
 {anomalies_summary}
 
