@@ -1,0 +1,136 @@
+{
+  "article_id": "KB-EXOS-ROUTING-999",
+  "source_url": "https://extreme-networks.my.site.com/ExtrArticleDetail?an=000122408",
+  "title": "How To: Configure BGP on Switch Engine (EXOS)",
+  "vendor": "Extreme Networks",
+  "platform": "EXOS",
+  "category": "routing",
+  "subcategory": "BGP",
+  "symptoms": [
+    "BGP neighbor not establishing",
+    "BGP session down",
+    "Routes not being advertised"
+  ],
+  "root_causes": [
+    "Incorrect AS number configuration",
+    "Loopback interface misconfiguration",
+    "Missing route to BGP neighbor",
+    "Authentication mismatch",
+    "Firewall blocking BGP port (179)"
+  ],
+  "diagnostic_commands": [
+    "show bgp",
+    "show bgp neighbor",
+    "show bgp routes all"
+  ],
+  "remediation_steps": [
+    {
+      "step": 1,
+      "description": "Create, Configure, and Enable Loopback (optional) interfaces Create VLAN interfaces to communicate with other systems: create vlan <vlan-name>",
+      "commands": [
+        "create vlan <vlan-name>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 2,
+      "description": "Assign an IP address on each VLAN interface: configure vlan <vlan-name> ipaddress <ip>/<mask>",
+      "commands": [
+        "configure vlan <vlan-name> ipaddress <ip>/<mask>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 3,
+      "description": "Add ports on each VLAN: configure vlan <vlan-name> add ports <ports> untagged",
+      "commands": [
+        "configure vlan <vlan-name> add ports <ports> untagged"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 4,
+      "description": "Create a loopback interface and assign an IP address (used as BGP router ID): create vlan <loopback_x> configure vlan <loopback_x> ipaddress <ip>/<mask>",
+      "commands": [
+        "create vlan <loopback_x> configure vlan <loopback_x> ipaddress <ip>/<mask>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 5,
+      "description": "Enable loopback mode on the loopback interface: enable loopback-mode vlan <loopback_x>",
+      "commands": [
+        "enable loopback-mode vlan <loopback_x>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 6,
+      "description": "Verify the vlan information (Example Output from R11): BGP-R11.1 # show vlan Untagged ports auto-move: Inform -------------------------------------------------------------------------------------------- Name            VID  Protocol Addr       Flags ",
+      "commands": [],
+      "expected_output": ""
+    },
+    {
+      "step": 7,
+      "description": "Add routes for the BGP neighbor's loopback interface : configure iproute add <NBR_LOOPBACK_IP>/<MASK> <NEXTHOP>",
+      "commands": [
+        "configure iproute add <NBR_LOOPBACK_IP>/<MASK> <NEXTHOP>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 8,
+      "description": "Enable IP forwarding on the VLAN(s) and loopback interface: enable ipforwarding <vlan>",
+      "commands": [
+        "enable ipforwarding <vlan>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 9,
+      "description": "Configure BGP Router ID: configure bgp routerid <id>",
+      "commands": [
+        "configure bgp routerid <id>"
+      ],
+      "expected_output": ""
+    },
+    {
+      "step": 10,
+      "description": "Configure the local AS number for the switch: configure bgp AS-number <ASN>",
+      "commands": [
+        "configure bgp AS-number <ASN>"
+      ],
+      "expected_output": ""
+    }
+  ],
+  "configuration_example": {
+    "scenario": "This article demonstrates how to configure the Boarder Gateway Protocol (BGP) on Extreme Switching devices running Switch Engine (EXOS).",
+    "commands": [
+      "Create VLAN interfaces",
+      "create vlan <vlan-name>",
+      "create vlan <loopback_x>",
+      "configure vlan <loopback_x> ipaddress <ip>/<mask>",
+      "enable loopback-mode vlan <loopback_x>",
+      "configure iproute add <NBR_LOOPBACK_IP>/<MASK> <NEXTHOP>",
+      "enable ipforwarding <vlan>",
+      "configure bgp routerid <id>",
+      "configure bgp AS-number <ASN>",
+      "create bgp neighbor <NBR_IP> remote-AS-number <REMOTE_ASN>"
+    ]
+  },
+  "additional_notes": "Switch Engine (Universal & Summit) Base License Support:BGP Auto-peering - all universal platforms but limited to X465, X590, X690, and X695 Summit platformsBGP peers--Switches are allowed up to 2 manually configured BGP peers on the default VR; however, no support for Summit platformsSwitch Engine Premier (Universal) and Core (Summit) License Support:BGP4 and MBGP (BGP4+) for IPv4 ECMP requires a Premier license and is supported on all universal platformsBGP4 and MBGP (BGP4+) for IPv4 ECMP requires a Core license on Summit platforms (X450G2, X460G2, X465, X590, X690, and X695)BGP4 and MBGP (BGP4+) for IPv6 requires a Premier license for Switch Engine and is supported on all universal platformsBGP4 and MBGP (BGP4+) for IPv6 requires a Core license on Summit platforms (X450G2, X460G2, X465, X590, X690, and X695)For additional information, please check the Feature license requirements guides:SwitchEngine_Feature_License_Requirements_32.7.1.pdfEXOS_Feature_License_Requirements_32.7.1.pdf",
+  "related_articles": [],
+  "keywords": [
+    "Switch",
+    "EXOS",
+    "Engine",
+    "Configure",
+    "BGP"
+  ],
+  "last_updated": "2026-06-15",
+  "confidence_tags": {
+    "official_source": true,
+    "tested": false,
+    "version_specific": "All versions"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "article_id": "KB-EXOS-CONFIGURATION-003",
+  "title": "Fixing EXOS/Switch Engine Reboot Loop",
+  "source_url": "https://extreme-networks.my.site.com/ExtrArticleDetail?an=000107505&q=EXOS%20interface%20issue",
+  "platform": "EXOS",
+  "category": "configuration",
+  "subcategory": "boot process",
+  "version": null,
+  "symptoms": [
+    "Switch is in a continuous reboot loop",
+    "Boot process fails to complete",
+    "Switch is unresponsive due to rebooting",
+    "Error messages during boot process",
+    "Switch fails to load configuration"
+  ],
+  "root_causes": [
+    "Corrupted configuration file",
+    "Failed software update",
+    "Hardware failure",
+    "Power issues",
+    "Incorrect boot settings"
+  ],
+  "diagnostic_commands": [
+    "show configuration",
+    "show ports",
+    "show vlan",
+    "show switch",
+    "show version"
+  ],
+  "remediation_steps": [
+    {
+      "step": "Boot to alternate image",
+      "commands": [
+        "configure boot alternate"
+      ]
+    },
+    {
+      "step": "Boot without configuration",
+      "commands": [
+        "configure boot no-config"
+      ]
+    },
+    {
+      "step": "Use Rescue image process",
+      "commands": [
+        "configure boot rescue"
+      ]
+    }
+  ],
+  "keywords": [
+    "EXOS",
+    "reboot loop",
+    "boot process",
+    "configuration",
+    "rescue image",
+    "switch engine"
+  ],
+  "tested": false,
+  "confidence": 0.85,
+  "extraction_method": "llm",
+  "llm_model": "llama-3.3-70b-versatile",
+  "created_at": "2026-06-16T18:04:41.243310Z",
+  "quality_score": 100,
+  "validation_errors": [],
+  "validation_warnings": []
+}
