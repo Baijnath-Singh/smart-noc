@@ -125,8 +125,11 @@ def main():
     print("="*60)
     
     try:
+        # Get YAML file from command line argument or use default
+        yaml_file = sys.argv[1] if len(sys.argv) > 1 else "knowledge_base.yaml"
+        
         # Load articles
-        articles = load_kb_articles()
+        articles = load_kb_articles(yaml_file)
         
         # Populate vector DB
         success = populate_vector_db(articles)

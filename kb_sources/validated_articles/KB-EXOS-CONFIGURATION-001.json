@@ -3,8 +3,9 @@
   "title": "Fixing EXOS/Switch Engine Reboot Loop",
   "source_url": "https://extreme-networks.my.site.com/ExtrArticleDetail?an=000107505&q=EXOS%20interface%20issue",
   "platform": "EXOS",
-  "category": "configuration",
+  "category": "system",
   "subcategory": "boot process",
+  "event_type": "SYSTEM_REBOOT",
   "version": null,
   "symptoms": [
     "Switch is in a continuous reboot loop",
