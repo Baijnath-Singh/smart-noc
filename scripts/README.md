@@ -9,11 +9,27 @@
 
 ```
 scripts/
-├── setup/          # System setup and initialization
-├── teardown/       # Cleanup and teardown scripts  
-├── testing/        # Test execution scripts
-└── utilities/      # Helper tools and utilities
+├── kb_tools/          # KB article creation & management
+├── log_generators/    # Test log generation & sending
+├── setup/             # System setup and initialization
+├── teardown/          # Cleanup and teardown scripts  
+├── testing/           # Test execution scripts
+└── utilities/         # Helper tools and utilities
 ```
+
+### 📚 KB Tools (`kb_tools/`)
+Scripts for creating and managing knowledge base articles:
+- **`kb_article_creator.py`** - Interactive KB article creator with LLM extraction
+- **`import_kb_to_vector.sh`** - Import KB articles to ChromaDB
+- **`llm_extractor.py`** - LLM-based article extraction from vendor docs
+- **`article_validator.py`** - Validate KB article quality
+- See [kb_tools/README_KB_TOOLS.md](kb_tools/README_KB_TOOLS.md) for details
+
+### 📝 Log Generators (`log_generators/`)
+Scripts for generating and sending test logs:
+- **`send_test_logs.sh`** - Send syslog messages to Logstash (main test tool)
+- **`generate-logs.sh`** - Generate synthetic network logs
+- See [log_generators/README.md](log_generators/README.md) for usage
 
 ---
 
